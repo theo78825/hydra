@@ -1,6 +1,15 @@
 import { FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useContext } from "react";
-import { Alert, StyleSheet, Switch, Text, View } from "react-native";
+import React, { useContext, useState } from "react";
+import {
+  Alert,
+  Modal,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput as RNTextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import List from "../../../components/UI/List";
 import SectionTitle from "../../../components/UI/SectionTitle";
@@ -135,6 +144,10 @@ export default function Filters() {
   const { isPro } = useContext(SubscriptionsContext);
   const { pushURL } = useURLNavigation();
 
+  // ── Bulk Import State ──────────────────────────────────────────────────────
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importText, setImportText] = useState("");
+
   const filteredSubreddits = Object.entries(hideFilteredSubreddits);
 
   const hideSeenURLOverrides = Object.entries(hideSeenURLs)
@@ -161,8 +174,95 @@ export default function Filters() {
     );
   };
 
+  // ── Bulk Import Logic ──────────────────────────────────────────────────────
+  const handleBulkImport = () => {
+    // Split on newlines and commas, strip whitespace and leading r/
+    const names = importText
+      .split(/[\n,]+/)
+      .map((s) => s.trim().replace(/^r\//i, "").trim())
+      .filter((s) => s.length > 0);
+
+    if (names.length === 0) {
+      Alert.alert("No subreddits found", "Please enter at least one subreddit name.");
+      return;
+    }
+
+    let added = 0;
+    let duplicates = 0;
+
+    names.forEach((name) => {
+      if (hideFilteredSubreddits[name] !== undefined) {
+        duplicates++;
+      } else {
+        toggleHideSubreddit(name, true);
+        added++;
+      }
+    });
+
+    setImportModalVisible(false);
+    setImportText("");
+
+    Alert.alert(
+      "Import Complete",
+      `Added ${added} subreddit${added !== 1 ? "s" : ""} to filters.` +
+        (duplicates > 0 ? ` (${duplicates} already filtered, skipped)` : ""),
+    );
+  };
+
   return (
     <>
+      {/* ── Bulk Import Modal ──────────────────────────────────────────────── */}
+      <Modal
+        visible={importModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setImportModalVisible(false)}
+      >
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: theme.background },
+          ]}
+        >
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setImportModalVisible(false)}>
+              <Text style={[styles.modalHeaderButton, { color: theme.iconPrimary }]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Bulk Import Subreddits
+            </Text>
+            <TouchableOpacity onPress={handleBulkImport}>
+              <Text style={[styles.modalHeaderButton, { color: theme.iconPrimary }]}>
+                Import
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.modalDescription, { color: theme.subtleText }]}>
+            Paste a list of subreddits to filter. Separate them with commas or
+            new lines. The "r/" prefix is optional.
+          </Text>
+          <RNTextInput
+            style={[
+              styles.modalTextInput,
+              {
+                backgroundColor: theme.tint,
+                borderColor: theme.divider,
+                color: theme.text,
+              },
+            ]}
+            multiline
+            autoFocus
+            textAlignVertical="top"
+            placeholder={"AskReddit\nWorldNews\nr/funny, r/gaming"}
+            placeholderTextColor={theme.subtleText}
+            value={importText}
+            onChangeText={setImportText}
+          />
+        </View>
+      </Modal>
+
       <Text
         style={[
           styles.textDescription,
@@ -350,7 +450,7 @@ export default function Filters() {
         }))}
       />
       <View style={[styles.divider, { borderColor: theme.divider }]} />
-      <SectionTitle text="Filtered subreddits" />
+      <SectionTitle text="Filtered Subreddits" />
       <Text
         style={[
           styles.textDescription,
@@ -361,9 +461,34 @@ export default function Filters() {
         ]}
       >
         You can filter subreddits by long-pressing posts on /r/all or
-        /r/popular. Once filtered, subreddits will apear here. Delete the filter
-        to begin seeing posts from the subreddit again.
+        /r/popular. Once filtered, subreddits will appear here. Delete the
+        filter to begin seeing posts from the subreddit again.
       </Text>
+      {/* ── Bulk Import Button ─────────────────────────────────────────────── */}
+      <List
+        title="Import"
+        items={[
+          {
+            key: "bulkImport",
+            icon: (
+              <MaterialCommunityIcons
+                name="import"
+                size={24}
+                color={theme.text}
+              />
+            ),
+            text: "Bulk Import Subreddits",
+            rightIcon: (
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={24}
+                color={theme.subtleText}
+              />
+            ),
+            onPress: () => setImportModalVisible(true),
+          },
+        ]}
+      />
       {filteredSubreddits.length > 0 && (
         <List
           title="Subreddits"
@@ -449,5 +574,38 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     gap: 2,
+  },
+  // ── Modal styles ────────────────────────────────────────────────────────────
+  modalContainer: {
+    flex: 1,
+    paddingTop: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+  },
+  modalHeaderButton: {
+    fontSize: 17,
+  },
+  modalDescription: {
+    marginHorizontal: 15,
+    marginBottom: 12,
+    lineHeight: 20,
+    fontSize: 14,
+  },
+  modalTextInput: {
+    marginHorizontal: 15,
+    borderWidth: 2,
+    borderRadius: 10,
+    padding: 10,
+    flex: 1,
+    fontSize: 15,
   },
 });
