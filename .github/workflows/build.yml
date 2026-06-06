@@ -1,0 +1,98 @@
+name: Build Hydra IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: |
+          LATEST=$(ls /Applications/ | grep "^Xcode" | sort -V | tail -1)
+          echo "Using $LATEST"
+          sudo xcode-select -s "/Applications/$LATEST/Contents/Developer"
+          xcodebuild -version
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Expo Prebuild
+        run: npx expo prebuild --platform ios --clean --non-interactive
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+
+      - name: Patch Podfile (Swift concurrency fix)
+        run: |
+          python3 << 'PYEOF'
+          import re
+          with open('ios/Podfile', 'r') as f:
+              content = f.read()
+          match = re.search(r'^( *)post_install do \|installer\|$', content, re.MULTILINE)
+          if match:
+              indent = match.group(1)
+              insert_pos = match.end() + 1
+              our_code = (
+                  f'{indent}  installer.pods_project.targets.each do |target|\n'
+                  f'{indent}    target.build_configurations.each do |config|\n'
+                  f"{indent}      config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'\n"
+                  f'{indent}    end\n'
+                  f'{indent}  end\n'
+              )
+              content = content[:insert_pos] + our_code + content[insert_pos:]
+          with open('ios/Podfile', 'w') as f:
+              f.write(content)
+          print("Podfile patched")
+          PYEOF
+
+      - name: Pod Install
+        run: cd ios && pod install
+
+      - name: Build unsigned app
+        run: |
+          SENTRY_DISABLE_AUTO_UPLOAD=true xcodebuild \
+            -workspace ios/Hydra.xcworkspace \
+            -scheme Hydra \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ENABLE_BITCODE=NO \
+            2>&1 | grep -E "error:|warning:|BUILD SUCCEEDED|BUILD FAILED" | grep -v "warning:" || true
+
+          # Verify the .app was produced
+          APP=$(find build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 2>/dev/null | head -1)
+          if [ -z "$APP" ]; then
+            echo "BUILD FAILED: .app not found"
+            exit 1
+          fi
+          echo "Build succeeded: $APP"
+
+      - name: Package as IPA
+        run: |
+          APP=$(find build/Build/Products/Release-iphoneos -name "*.app" -maxdepth 1 | head -1)
+          mkdir -p Payload
+          cp -r "$APP" Payload/
+          zip -qr Hydra-BulkImport.ipa Payload/
+          rm -rf Payload/
+          ls -lh Hydra-BulkImport.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hydra-BulkImport-IPA
+          path: Hydra-BulkImport.ipa
+          retention-days: 7
