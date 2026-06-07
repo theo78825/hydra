@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import Advanced from "./Advanced";
 import Appearance from "./Appearance";
+import BackupRestore from "./General/BackupRestore";
 import DataUse from "./DataUse";
 import Filters from "./General/Filters";
 import GeneralRoot from "./General/GeneralRoot";
@@ -68,6 +69,7 @@ export default function SettingsPage({
         {relativePath === "settings/general/startup" && <Startup />}
         {relativePath === "settings/general/legal" && <Legal />}
         {relativePath === "settings/general/externalLinks" && <ExternalLinks />}
+        {relativePath === "settings/general/backupRestore" && <BackupRestore />}
 
         {relativePath === "settings/theme" && <Theme />}
         {relativePath === "settings/themeMaker" && <ThemeMaker />}

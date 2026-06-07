@@ -67,6 +67,12 @@ export default function GeneralRoot() {
             text: "External Links",
             onPress: () => pushURL("hydra://settings/general/externalLinks"),
           },
+          {
+            key: "backupRestore",
+            icon: <Feather name="cloud" size={22} color={theme.text} />,
+            text: "Backup & Restore",
+            onPress: () => pushURL("hydra://settings/general/backupRestore"),
+          },
         ]}
       />
     </>
