@@ -1,0 +1,138 @@
+name: Sync with Upstream
+
+# Runs daily at 6 AM UTC. Can also be triggered manually.
+# On a clean merge: fast-forwards master and pushes automatically.
+# On conflicts: opens a PR so you can resolve before merging.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      auto_build:
+        description: 'Also trigger the IPA build after a clean sync'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Explicit token so the push and gh CLI calls work
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ── Check for new upstream commits ────────────────────────────────────
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/dmilin1/hydra.git
+          git fetch upstream master
+
+      - name: Count new upstream commits
+        id: check
+        run: |
+          COUNT=$(git rev-list HEAD..upstream/master --count)
+          echo "new_commits=$COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "### $COUNT new upstream commit(s) found:" >> "$GITHUB_STEP_SUMMARY"
+            git log HEAD..upstream/master --oneline | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Already up to date — nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # ── Attempt the merge on a temporary branch ───────────────────────────
+      - name: Attempt merge
+        if: steps.check.outputs.new_commits != '0'
+        id: merge
+        run: |
+          SYNC_BRANCH="upstream-sync-$(date +%Y%m%d-%H%M%S)"
+          echo "sync_branch=$SYNC_BRANCH" >> "$GITHUB_OUTPUT"
+
+          git checkout -b "$SYNC_BRANCH"
+
+          if git merge upstream/master --no-edit \
+               -m "chore: sync with upstream dmilin1/hydra $(date +%Y-%m-%d)"; then
+            echo "status=clean" >> "$GITHUB_OUTPUT"
+          else
+            # Commit the conflicted state so we can open a PR for manual resolution
+            echo "status=conflict" >> "$GITHUB_OUTPUT"
+            git add -A
+            git commit -m "chore: upstream sync $(date +%Y-%m-%d) — RESOLVE CONFLICTS before merging"
+          fi
+
+      # ── Clean merge: fast-forward master and push ─────────────────────────
+      - name: Push clean sync to master
+        if: steps.check.outputs.new_commits != '0' && steps.merge.outputs.status == 'clean'
+        run: |
+          git checkout master
+          git merge "${{ steps.merge.outputs.sync_branch }}" --ff-only
+          git push origin master
+          git branch -D "${{ steps.merge.outputs.sync_branch }}"
+          echo "### ✅ master synced cleanly." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Trigger IPA build (optional)
+        if: |
+          steps.check.outputs.new_commits != '0' &&
+          steps.merge.outputs.status == 'clean' &&
+          inputs.auto_build == true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run build.yml
+
+      # ── Conflicts: push branch and open a PR ─────────────────────────────
+      - name: Open PR for conflicting sync
+        if: steps.check.outputs.new_commits != '0' && steps.merge.outputs.status == 'conflict'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SYNC_BRANCH="${{ steps.merge.outputs.sync_branch }}"
+          git push origin "$SYNC_BRANCH"
+
+          # Don't open a duplicate if a sync PR is already waiting
+          EXISTING=$(gh pr list --state open \
+            --json title,number \
+            --jq '[.[] | select(.title | startswith("⚠️ Upstream sync"))] | .[0].number // ""')
+          if [ -n "$EXISTING" ]; then
+            echo "Sync PR #$EXISTING is already open — skipping new PR." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          gh pr create \
+            --base master \
+            --head "$SYNC_BRANCH" \
+            --title "⚠️ Upstream sync $(date +%Y-%m-%d) — conflicts need resolution" \
+            --body "## Upstream changes couldn't be auto-merged
+
+          New commits from [dmilin1/hydra](https://github.com/dmilin1/hydra) conflict with
+          the custom patches in this fork. Resolve the conflict markers below, then merge.
+
+          ### Files most likely to need attention
+          - \`pages/SettingsPage/General/Filters.tsx\` — bulk subreddit import patch
+          - \`pages/SettingsPage/index.tsx\` — BackupRestore route wiring
+          - \`pages/SettingsPage/General/GeneralRoot.tsx\` — Backup & Restore menu entry
+          - \`package.json\` / \`package-lock.json\` — our added \`expo-document-picker\` + \`expo-file-system\`
+
+          ### Steps to resolve
+          1. Check out this branch locally
+          2. Fix every \`<<<<<<\` conflict marker — keep upstream changes and layer your customisations back on top
+          3. If \`package.json\` changed, run \`npm install\` (Node 20) and commit the updated lock file
+          4. Push and merge this PR
+          5. Manually trigger **Build Hydra IPA** for a fresh IPA once master looks good
+
+          ### ⚠️ Do not use the 'Update branch' button
+          That would merge master into this branch (the wrong direction). Resolve locally and push instead."
+
+          echo "### ⚠️ Conflicts detected — PR opened for manual resolution." >> "$GITHUB_STEP_SUMMARY"
