@@ -10,11 +10,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useMMKVObject } from "react-native-mmkv";
 
 import List from "../../../components/UI/List";
 import SectionTitle from "../../../components/UI/SectionTitle";
 import TextInput from "../../../components/UI/TextInput";
-import { FiltersContext } from "../../../contexts/SettingsContexts/FiltersContext";
+import {
+  FiltersContext,
+  HIDE_FILTERED_SUBREDDITS_KEY,
+} from "../../../contexts/SettingsContexts/FiltersContext";
 import { ThemeContext } from "../../../contexts/SettingsContexts/ThemeContext";
 import { SubscriptionsContext } from "../../../contexts/SubscriptionsContext";
 import { useURLNavigation } from "../../../utils/navigation";
@@ -148,6 +152,11 @@ export default function Filters() {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importText, setImportText] = useState("");
 
+  // Direct MMKV write — bypasses the closure problem in toggleFilterSubreddit
+  const [, setStoredFilteredSubreddits] = useMMKVObject<
+    Record<string, number | true>
+  >(HIDE_FILTERED_SUBREDDITS_KEY);
+
   const filteredSubreddits = Object.entries(hideFilteredSubreddits);
 
   const hideSeenURLOverrides = Object.entries(hideSeenURLs)
@@ -176,7 +185,6 @@ export default function Filters() {
 
   // ── Bulk Import Logic ──────────────────────────────────────────────────────
   const handleBulkImport = () => {
-    // Split on newlines and commas, strip whitespace and leading r/
     const names = importText
       .split(/[\n,]+/)
       .map((s) => s.trim().replace(/^r\//i, "").trim())
@@ -187,17 +195,24 @@ export default function Filters() {
       return;
     }
 
+    // Build the full merged object locally then write once —
+    // calling toggleFilterSubreddit in a loop fails because each call
+    // spreads the same stale closure value, overwriting previous ones.
+    const merged = { ...hideFilteredSubreddits };
     let added = 0;
     let duplicates = 0;
 
     names.forEach((name) => {
-      if (hideFilteredSubreddits[name] !== undefined) {
+      if (merged[name] !== undefined) {
         duplicates++;
       } else {
-        toggleHideSubreddit(name, true);
+        merged[name] = true;
         added++;
       }
     });
+
+    // Single MMKV write with the full merged result
+    setStoredFilteredSubreddits(merged);
 
     setImportModalVisible(false);
     setImportText("");
