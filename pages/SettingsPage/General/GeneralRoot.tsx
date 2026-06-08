@@ -5,10 +5,13 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import React, { useContext } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 import List from "../../../components/UI/List";
 import { ThemeContext } from "../../../contexts/SettingsContexts/ThemeContext";
 import { useURLNavigation } from "../../../utils/navigation";
+
+const CUSTOM_VERSION = "1.0.0";
 
 export default function GeneralRoot() {
   const { theme } = useContext(ThemeContext);
@@ -75,6 +78,26 @@ export default function GeneralRoot() {
           },
         ]}
       />
+      <View style={styles.versionContainer}>
+        <Text style={[styles.versionText, { color: theme.subtleText }]}>
+          Custom Build v{CUSTOM_VERSION}
+          {"\n"}
+          Bulk Import · Backup & Restore
+        </Text>
+      </View>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  versionContainer: {
+    marginVertical: 25,
+    marginHorizontal: 15,
+    alignItems: "center",
+  },
+  versionText: {
+    textAlign: "center",
+    fontSize: 13,
+    lineHeight: 20,
+  },
+});
