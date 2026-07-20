@@ -3,6 +3,12 @@ import packageJson from './package.json';
 const projectId = "7e403d7f-7747-4daa-a3c9-4acb948f7a60";
 const IS_DEV = process.env.APP_VARIANT === 'development';
 
+// Allow signing under a personal Apple Developer team without editing the
+// upstream default. `scripts/update-hydra.sh` sets HYDRA_BUNDLE_ID so local
+// device builds use an identifier registered to your own team; CI and the
+// daily upstream sync keep the default below untouched.
+const BUNDLE_ID = process.env.HYDRA_BUNDLE_ID ?? "com.dmilin.hydra";
+
 module.exports = {
   expo: {
     name: "Hydra",
@@ -25,7 +31,7 @@ module.exports = {
     ios: {
       appStoreUrl: "https://apps.apple.com/us/app/hydra-for-reddit/id6478089063",
       supportsTablet: true,
-      bundleIdentifier: "com.dmilin.hydra",
+      bundleIdentifier: BUNDLE_ID,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
       },
