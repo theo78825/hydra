@@ -53,6 +53,15 @@ jobs:
             echo "Already up to date — nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
+      # Node is needed to regenerate package-lock.json after a merge that
+      # changes dependencies. Match the version used by the build workflow.
+      - name: Set up Node.js
+        if: steps.check.outputs.new_commits != '0'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
       # ── Attempt the merge on a temporary branch ───────────────────────────
       - name: Attempt merge
         if: steps.check.outputs.new_commits != '0'
@@ -65,6 +74,16 @@ jobs:
 
           if git merge upstream/master --no-edit \
                -m "chore: sync with upstream dmilin1/hydra $(date +%Y-%m-%d)"; then
+            # A plain git merge can leave package-lock.json inconsistent with the
+            # merged package.json (stale root version, missing transitive deps),
+            # which breaks `npm ci` in the build workflow. Regenerate it and fold
+            # the result into the merge commit so the pushed lockfile is valid.
+            npm install --package-lock-only --ignore-scripts
+            if ! git diff --quiet -- package-lock.json; then
+              git add package-lock.json
+              git commit --amend --no-edit
+              echo "Regenerated package-lock.json to stay in sync." >> "$GITHUB_STEP_SUMMARY"
+            fi
             echo "status=clean" >> "$GITHUB_OUTPUT"
           else
             # Commit the conflicted state so we can open a PR for manual resolution
