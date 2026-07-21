@@ -35,6 +35,7 @@ DERIVED="build"
 cd "$(dirname "$0")/.."                                   # repo root
 export DEVELOPER_DIR="$XCODE_APP/Contents/Developer"      # use Xcode, no sudo
 export HYDRA_BUNDLE_ID="$BUNDLE_ID"                        # override in app.config.ts
+export SENTRY_DISABLE_AUTO_UPLOAD=true                     # skip Sentry source-map upload (matches CI)
 export LANG="${LANG:-en_US.UTF-8}"                         # keep CocoaPods happy
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 
