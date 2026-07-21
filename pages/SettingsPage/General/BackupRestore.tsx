@@ -105,9 +105,9 @@ export default function BackupRestore() {
           {
             text: "Restore",
             style: "destructive",
-            onPress: () => {
+            onPress: async () => {
               try {
-                const result = restoreSettingsBackup(content);
+                const result = await restoreSettingsBackup(content);
                 promptRestart(
                   `Restored ${result.restored} setting${
                     result.restored !== 1 ? "s" : ""
@@ -144,8 +144,8 @@ export default function BackupRestore() {
   return (
     <>
       <Text style={[styles.textDescription, { color: theme.text }]}>
-        Back up your Hydra settings — themes, gestures, filters, sorting, and
-        other preferences — to a file you can store in iCloud Drive. To save to
+        Back up your Hydra settings — themes, gestures, filters, sorting, app
+        icon, and other preferences — to a file you can store in iCloud Drive. To save to
         iCloud, tap Back Up Settings, then choose &quot;Save to Files&quot; and
         pick an iCloud Drive folder. On another device, install Hydra, open this
         screen, and tap Restore Settings to load the file back.
