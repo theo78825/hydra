@@ -1,4 +1,4 @@
-import { FontAwesome6 } from "@expo/vector-icons";
+import FontAwesome6 from "@react-native-vector-icons/fontawesome6";
 import { FlashList, FlashListRef } from "@shopify/flash-list";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { StyleSheet, Animated, Modal, Text, View } from "react-native";
@@ -184,7 +184,12 @@ export default function MediaViewer({
             onPress={() => handleTapToScrollRow("left")}
             hitSlop={10}
           >
-            <FontAwesome6 name="arrow-left" size={16} color="white" />
+            <FontAwesome6
+              iconStyle="solid"
+              name="arrow-left"
+              size={16}
+              color="white"
+            />
           </Touchable>
           <Touchable
             activeOpacity={0.2}
@@ -199,7 +204,12 @@ export default function MediaViewer({
             onPress={() => handleTapToScrollRow("right")}
             hitSlop={10}
           >
-            <FontAwesome6 name="arrow-right" size={16} color="white" />
+            <FontAwesome6
+              iconStyle="solid"
+              name="arrow-right"
+              size={16}
+              color="white"
+            />
           </Touchable>
           <View style={styles.itemIndexContainer}>
             <Text style={styles.itemIndexText}>
@@ -311,7 +321,9 @@ export default function MediaViewer({
                   ? initialColumnIndex.current
                   : 0
               }
-              scrollEnabled={row[0]?.type !== "video"}
+              scrollEnabled={
+                row[0]?.type !== "video" || !!row[0]?.source.sourceLoadError
+              }
               pagingEnabled={true}
               horizontal={true}
               getItemType={(item) => item.type}
@@ -320,7 +332,9 @@ export default function MediaViewer({
                   ? ((typeof item.source === "string"
                       ? item.source
                       : item.source[0].uri) ?? index.toString())
-                  : item.source.source
+                  : item.source.source.length
+                    ? item.source.source
+                    : index.toString()
               }
               showsHorizontalScrollIndicator={false}
               onScroll={(event) => {
