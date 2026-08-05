@@ -3,7 +3,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import Animated, { useSharedValue } from "react-native-reanimated";
-import { FontAwesome } from "@expo/vector-icons";
+import FontAwesome from "@react-native-vector-icons/fontawesome";
 import {
   useSafeAreaFrame,
   useSafeAreaInsets,
@@ -58,9 +58,11 @@ function MediaVideo(props: MediaVideoProps) {
   const [status, setStatus] = useState(player.status);
   const [error, setError] = useState<string | null>(null);
 
+  const videoTrack = useEvent(player, "videoTrackChange")?.videoTrack;
+
   const dimensions = {
-    width: player.videoTrack?.size.width ?? 0,
-    height: player.videoTrack?.size.height ?? 0,
+    width: videoTrack?.size.width ?? 0,
+    height: videoTrack?.size.height ?? 0,
   };
 
   const aspectRatio = dimensions.width / dimensions.height;
@@ -264,7 +266,12 @@ function MediaVideo(props: MediaVideoProps) {
 }
 
 export default function MediaVideoWrapper(props: MediaVideoProps) {
-  return (
+  const error = props.source.sourceLoadError ?? null;
+  return error ? (
+    <View style={styles.notReadyContainer}>
+      <Text style={styles.errorText}>{error}</Text>
+    </View>
+  ) : (
     <DismountWhenBackgrounded>
       <MediaVideo {...props} />
     </DismountWhenBackgrounded>
