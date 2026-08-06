@@ -11,6 +11,7 @@ import HydraPro from "./HydraPro";
 import Legal from "./General/Legal";
 import OpenInHydra from "./General/OpenInHydra";
 import ExternalLinks from "./General/ExternalLinks";
+import ModifyLinks from "./General/ModifyLinks";
 import Privacy from "./Privacy";
 import Root from "./Root";
 import Sorting from "./General/Sorting";
@@ -69,7 +70,11 @@ export default function SettingsPage({
         {relativePath === "settings/general/startup" && <Startup />}
         {relativePath === "settings/general/legal" && <Legal />}
         {relativePath === "settings/general/externalLinks" && <ExternalLinks />}
+<<<<<<< HEAD
         {relativePath === "settings/general/backupRestore" && <BackupRestore />}
+=======
+        {relativePath === "settings/general/modifyLinks" && <ModifyLinks />}
+>>>>>>> upstream/master
 
         {relativePath === "settings/theme" && <Theme />}
         {relativePath === "settings/themeMaker" && <ThemeMaker />}
