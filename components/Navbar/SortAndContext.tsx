@@ -1,12 +1,10 @@
-import {
-  AntDesign,
-  MaterialCommunityIcons,
-  MaterialIcons,
-  SimpleLineIcons,
-  Entypo,
-  FontAwesome,
-  Ionicons,
-} from "@expo/vector-icons";
+import AntDesign from "@react-native-vector-icons/ant-design";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons";
+import SimpleLineIcons from "@react-native-vector-icons/simple-line-icons";
+import Entypo from "@react-native-vector-icons/entypo";
+import FontAwesome from "@react-native-vector-icons/fontawesome";
+import Ionicons from "@react-native-vector-icons/ionicons";
 import { RouteProp } from "@react-navigation/native";
 import React, { useContext, useRef } from "react";
 import { StyleSheet, View, Alert, findNodeHandle } from "react-native";
@@ -57,6 +55,8 @@ export type ContextTypes =
   | "Select Text"
   | "Subscribe"
   | "Unsubscribe"
+  | "Follow"
+  | "Unfollow"
   | "Favorite"
   | "Unfavorite"
   | "New Post"
@@ -307,6 +307,10 @@ export default function SortAndContext({
               subscribe(new RedditURL(currentPath).getSubreddit());
             } else if (result === "Unsubscribe") {
               unsubscribe(new RedditURL(currentPath).getSubreddit());
+            } else if (result === "Follow" && pageData?.type === "user") {
+              subscribe(`u_${pageData.userName}`);
+            } else if (result === "Unfollow" && pageData?.type === "user") {
+              unsubscribe(`u_${pageData.userName}`);
             } else if (result === "Favorite" || result === "Unfavorite") {
               toggleFavorite(new RedditURL(currentPath).getSubreddit());
             } else if (result === "Add to Multireddit") {

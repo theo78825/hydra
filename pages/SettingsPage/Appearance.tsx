@@ -1,14 +1,12 @@
-import {
-  MaterialCommunityIcons,
-  AntDesign,
-  FontAwesome,
-  Entypo,
-  MaterialIcons,
-  Feather,
-  Ionicons,
-} from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import AntDesign from "@react-native-vector-icons/ant-design";
+import FontAwesome from "@react-native-vector-icons/fontawesome";
+import Entypo from "@react-native-vector-icons/entypo";
+import MaterialIcons from "@react-native-vector-icons/material-icons";
+import Feather from "@react-native-vector-icons/feather";
+import Ionicons from "@react-native-vector-icons/ionicons";
 import React, { useContext } from "react";
-import { Alert, Switch, View } from "react-native";
+import { Alert, Platform, Switch, View } from "react-native";
 
 import List from "../../components/UI/List";
 import { CommentSettingsContext } from "../../contexts/SettingsContexts/CommentSettingsContext";
@@ -52,6 +50,8 @@ export default function Appearance() {
     toggleBlurSpoilers,
     showPostSummary,
     toggleShowPostSummary,
+    collapsePostSummary,
+    toggleCollapsePostSummary,
     autoPlayVideos,
     toggleAutoPlayVideos,
     liveTextInteraction,
@@ -69,6 +69,8 @@ export default function Appearance() {
     toggleCommentFlairs,
     showCommentSummary,
     toggleShowCommentSummary,
+    collapseCommentSummary,
+    toggleCollapseCommentSummary,
     tapToCollapseComment,
     toggleTapToCollapseComment,
     collapseChildrenOnly,
@@ -163,29 +165,29 @@ export default function Appearance() {
           },
           ...(postCompactMode
             ? [
-                {
-                  key: "showThumbnailsOnRightSide",
-                  icon: (
-                    <MaterialCommunityIcons
-                      name="image-outline"
-                      size={24}
-                      color={theme.text}
-                    />
-                  ),
-                  rightIcon: (
-                    <Switch
-                      trackColor={{
-                        false: theme.iconSecondary,
-                        true: theme.iconPrimary,
-                      }}
-                      value={showThumbnailsOnRightSide}
-                      onValueChange={() => toggleShowThumbnailsOnRightSide()}
-                    />
-                  ),
-                  text: "Show thumbnails on right",
-                  onPress: () => toggleShowThumbnailsOnRightSide(),
-                },
-              ]
+              {
+                key: "showThumbnailsOnRightSide",
+                icon: (
+                  <MaterialCommunityIcons
+                    name="image-outline"
+                    size={24}
+                    color={theme.text}
+                  />
+                ),
+                rightIcon: (
+                  <Switch
+                    trackColor={{
+                      false: theme.iconSecondary,
+                      true: theme.iconPrimary,
+                    }}
+                    value={showThumbnailsOnRightSide}
+                    onValueChange={() => toggleShowThumbnailsOnRightSide()}
+                  />
+                ),
+                text: "Show thumbnails on right",
+                onPress: () => toggleShowThumbnailsOnRightSide(),
+              },
+            ]
             : []),
           {
             key: "splitViewEnabled",
@@ -345,6 +347,28 @@ export default function Appearance() {
               }
             },
           },
+          ...(isPro && showPostSummary
+            ? [
+              {
+                key: "collapsePostSummary",
+                icon: (
+                  <Feather name="minimize-2" size={22} color={theme.text} />
+                ),
+                rightIcon: (
+                  <Switch
+                    trackColor={{
+                      false: theme.iconSecondary,
+                      true: theme.iconPrimary,
+                    }}
+                    value={collapsePostSummary}
+                    onValueChange={() => toggleCollapsePostSummary()}
+                  />
+                ),
+                text: "Start summary collapsed",
+                onPress: () => toggleCollapsePostSummary(),
+              },
+            ]
+            : []),
           {
             key: "autoPlayVideos",
             icon: (
@@ -363,7 +387,7 @@ export default function Appearance() {
             text: "Auto play videos",
             onPress: () => toggleAutoPlayVideos(),
           },
-          {
+          ...((Platform.OS === "ios" || Platform.OS === "macos") ? [{
             key: "liveTextInteraction",
             icon: (
               <MaterialIcons
@@ -384,7 +408,7 @@ export default function Appearance() {
             ),
             text: "Live text",
             onPress: () => toggleLiveTextInteraction(),
-          },
+          }] : []),
           {
             key: "tapToCollapsePost",
             icon: (
@@ -499,6 +523,28 @@ export default function Appearance() {
               }
             },
           },
+          ...(isPro && showCommentSummary
+            ? [
+              {
+                key: "collapseCommentSummary",
+                icon: (
+                  <Feather name="minimize-2" size={22} color={theme.text} />
+                ),
+                rightIcon: (
+                  <Switch
+                    trackColor={{
+                      false: theme.iconSecondary,
+                      true: theme.iconPrimary,
+                    }}
+                    value={collapseCommentSummary}
+                    onValueChange={() => toggleCollapseCommentSummary()}
+                  />
+                ),
+                text: "Start summary collapsed",
+                onPress: () => toggleCollapseCommentSummary(),
+              },
+            ]
+            : []),
           {
             key: "tapToCollapseComment",
             icon: (
