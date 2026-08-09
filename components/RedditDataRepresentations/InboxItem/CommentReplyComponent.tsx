@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import Feather from "@react-native-vector-icons/feather";
 import React, { useContext } from "react";
 import { StyleSheet, View, Text } from "react-native";
 
@@ -62,7 +62,7 @@ export default function CommentReplyComponent({
           action: async () => voteOnMessage(VoteOption.UpVote),
         },
         {
-          name: "Feather",
+          name: "downvote",
           icon: <Feather name="arrow-down" />,
           color: theme.downvote,
           action: async () => voteOnMessage(VoteOption.DownVote),
