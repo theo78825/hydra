@@ -1,4 +1,3 @@
-import "react-native-url-polyfill/auto";
 import { decode } from "html-entities";
 
 import { Flair, formatFlair } from "./Flair";
@@ -47,7 +46,10 @@ export type Post = {
   images: (string | ImageSource[])[];
   imageThumbnail: ImageSource | null;
   mediaAspectRatio: number;
-  videos: { source: string; videoDownloadURL: string }[];
+  videos: {
+    source: string;
+    sourceLoadError?: string;
+  }[];
   poll: Poll | undefined;
   externalLink: string | undefined;
   openGraphData: OpenGraphData | undefined;
@@ -137,14 +139,11 @@ function formatImages(child: any): ImageSource[][] {
   return [];
 }
 
-async function formatVideos(
-  child: any,
-): Promise<{ source: string; videoDownloadURL: string }[]> {
+async function formatVideos(child: any): Promise<Post["videos"]> {
   if (child.data.media?.reddit_video?.hls_url) {
     return [
       {
         source: child.data.media.reddit_video.hls_url,
-        videoDownloadURL: child.data.media.reddit_video.fallback_url,
       },
     ];
   }
@@ -159,7 +158,6 @@ async function formatVideos(
         image.variants.mp4.resolutions.at(-1) ?? image.variants.mp4.source;
       return {
         source: decode(item.url),
-        videoDownloadURL: decode(item.url),
       };
     });
   }
@@ -190,7 +188,6 @@ async function formatVideos(
           const url = decode(data.s.mp4);
           return {
             source: url,
-            videoDownloadURL: url,
           };
         })
         .filter((video) => video !== null)
@@ -203,7 +200,6 @@ async function formatVideos(
       return [
         {
           source: videoURL,
-          videoDownloadURL: videoURL,
         },
       ];
     } else if (url.includes("gfycat.com")) {
@@ -211,15 +207,14 @@ async function formatVideos(
       return [
         {
           source: videoURL,
-          videoDownloadURL: videoURL,
         },
       ];
     } else if (url.includes("redgifs.com")) {
-      const videoURL = await Redgifs.getMediaURL(url);
+      const { videoURL, sourceLoadError } = await Redgifs.getMediaURL(url);
       return [
         {
           source: videoURL,
-          videoDownloadURL: videoURL,
+          sourceLoadError,
         },
       ];
     }
