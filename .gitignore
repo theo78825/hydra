@@ -19,3 +19,13 @@ web-build/
 
 /ios
 /android
+
+# Xcode derived data from scripts/update-hydra.sh and scripts/install-ota.sh.
+# This holds the signed Hydra.app and its embedded.mobileprovision, so on a
+# public repo it is a device UDID and a signing profile one `git add -A` away
+# from being published.
+build/
+
+# Machine- and network-specific config for scripts/install-ota.sh: SSH target,
+# tailnet hostname, device UDID. Never commit. Template: scripts/ota.env.example
+scripts/ota.env

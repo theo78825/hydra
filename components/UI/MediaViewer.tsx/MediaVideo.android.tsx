@@ -10,6 +10,7 @@ import {
 } from "react-native-safe-area-context";
 import DismountWhenBackgrounded from "../../Other/DismountWhenBackgrounded";
 import VideoCache from "../../../utils/VideoCache";
+import VideoPlaybackPositions from "../../../utils/VideoPlaybackPositions";
 import { Post } from "../../../api/Posts";
 import { AnimatedStyleHandle } from "react-native-reanimated/lib/typescript/hook/commonTypes";
 import {
@@ -47,6 +48,13 @@ function MediaVideo(props: MediaVideoProps) {
         toleranceBefore: 0.1,
         toleranceAfter: 0.1,
       };
+      /**
+       * Picks up where the inline player left off.
+       */
+      const position = VideoPlaybackPositions.get(source.source);
+      if (position !== undefined) {
+        player.currentTime = position;
+      }
     },
   );
 
@@ -137,6 +145,7 @@ function MediaVideo(props: MediaVideoProps) {
   useEventListener(player, "timeUpdate", (e) => {
     if (isSeeking.value) return;
     progress.value = e.currentTime / player.duration;
+    VideoPlaybackPositions.set(source.source, e.currentTime);
   });
 
   useEffect(() => {
