@@ -47,6 +47,17 @@ sitting uncommitted in the working tree.
 
 ## Open items / known issues
 
+- **Not merged into `master`.** The merge conflicts on `.gitignore` and was aborted
+  rather than resolved unattended. Upstream rewrote `ios/` as `/ios` and added
+  `/android`; this branch kept `ios/` and appended `build/` + `scripts/ota.env`.
+  Resolution is mechanical — take upstream's two lines, then append both of ours.
+  Everything is pushed to `origin/fix/video-position-sync`, so nothing is at risk.
+- **`origin/claude/video-resume-playback-phu2bg` already does much of this.** A prior
+  session built the same feature — same `utils/VideoPlaybackPositions.ts` filename,
+  the same "restart feed videos when remounted" decision, plus its own OTA pipeline
+  (`scripts/publish-install-page.sh`, a `signed-ipa.yml` workflow). It was never
+  merged. Reconcile the two before landing either; don't merge both blind.
+
 - **Inline videos still restart at 0 when scrolled back into view.** Deliberate: the
   seek is gated behind a ref so it only fires on a genuine fullscreen→inline
   transition. `subscribeToVisibility` also fires on mount, and without the gate every
@@ -59,9 +70,14 @@ sitting uncommitted in the working tree.
 
 ## Next steps
 
-1. Use the app normally for a few days and confirm the position sync doesn't misfire
+1. Compare this branch against `origin/claude/video-resume-playback-phu2bg` and decide
+   which implementation survives. Abandon the other rather than merging both.
+2. Resolve the `.gitignore` conflict and merge `fix/video-position-sync` into `master`:
+   keep upstream's `/ios` and `/android`, then append the `build/` and
+   `scripts/ota.env` blocks. Then push and delete the branch.
+3. Use the app normally for a few days and confirm the position sync doesn't misfire
    on galleries with several videos in one post.
-2. If Android ever matters, verify the fullscreen half there.
-3. Consider persisting positions across launches (KeyStore) if session-only turns out
+4. If Android ever matters, verify the fullscreen half there.
+5. Consider persisting positions across launches (KeyStore) if session-only turns out
    to be too forgetful in practice.
-4. Prune merged `upstream-sync-*` branches on origin.
+6. Prune merged `upstream-sync-*` branches on origin (19 unmerged remote branches).
