@@ -13,6 +13,7 @@ import { ThemeContext } from "../../../contexts/SettingsContexts/ThemeContext";
 import { MediaViewerContext } from "../../../contexts/MediaViewerContext";
 import DismountWhenBackgrounded from "../../Other/DismountWhenBackgrounded";
 import VideoCache from "../../../utils/VideoCache";
+import VideoPlaybackPositions from "../../../utils/VideoPlaybackPositions";
 
 type VideoProps = {
   uri: string;
@@ -41,6 +42,7 @@ function Video({ uri }: VideoProps) {
 
   useEventListener(player, "timeUpdate", (e) => {
     progress.setValue(e.currentTime / player.duration);
+    VideoPlaybackPositions.set(uri, e.currentTime);
   });
 
   useEffect(() => {
@@ -52,15 +54,30 @@ function Video({ uri }: VideoProps) {
     return () => subscription.remove();
   }, [player]);
 
+  const handedOffToMediaViewer = useRef(false);
+
   useEffect(() => {
     return subscribeToVisibility((isShowing) => {
       if (isShowing) {
+        handedOffToMediaViewer.current = true;
         player.pause();
       } else {
+        /**
+         * Only catch up to the fullscreen player if we actually handed off to
+         * it. This also fires on mount, where seeking would drop videos into
+         * the middle of a previous play through as they scroll back into view.
+         */
+        if (handedOffToMediaViewer.current) {
+          handedOffToMediaViewer.current = false;
+          const position = VideoPlaybackPositions.get(uri);
+          if (position !== undefined) {
+            player.currentTime = position;
+          }
+        }
         player.play();
       }
     });
-  }, [player, subscribeToVisibility]);
+  }, [player, subscribeToVisibility, uri]);
 
   return (
     <View style={styles.videoContainer} pointerEvents="none">
