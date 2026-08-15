@@ -34,19 +34,27 @@ function Video({ uri }: VideoProps) {
       player.bufferOptions = {
         maxBufferBytes: 1024 * 1024 * 5, // 5MB - Android only setting (prevents crashes)
       };
-      const savedPosition = VideoPlaybackPositions.get(uri);
-      if (savedPosition) {
-        player.currentTime = savedPosition;
-      }
+      /**
+       * Intentionally starts from the beginning. Videos in the feed restart
+       * whenever they're remounted, such as after scrolling off screen.
+       */
       player.play();
     },
   );
 
   const status = useEvent(player, "statusChange");
 
+  const isMediaViewerShowing = useRef(false);
+
   useEventListener(player, "timeUpdate", (e) => {
     progress.setValue(e.currentTime / player.duration);
-    VideoPlaybackPositions.save(uri, e.currentTime);
+    /**
+     * While the media viewer is open it owns the playback position, so a
+     * player back in the feed shouldn't overwrite it.
+     */
+    if (!isMediaViewerShowing.current) {
+      VideoPlaybackPositions.save(uri, e.currentTime);
+    }
   });
 
   useEffect(() => {
@@ -60,6 +68,7 @@ function Video({ uri }: VideoProps) {
 
   useEffect(() => {
     return subscribeToVisibility((isShowing) => {
+      isMediaViewerShowing.current = isShowing;
       if (isShowing) {
         player.pause();
       } else {
