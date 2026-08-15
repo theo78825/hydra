@@ -7,7 +7,9 @@ _Last updated: 2026-08-15_
 Hydra 4.1.0 (1) builds and installs cleanly on the iPhone over the air. This
 session added inline↔fullscreen video playback position sync and confirmed it
 working on device, then committed the local OTA install tooling that had been
-sitting uncommitted in the working tree.
+sitting uncommitted in the working tree. All of it is merged into `master`,
+which also picked up 13 upstream commits it was behind. The build currently on
+the phone predates those 13.
 
 ## Files changed this session
 
@@ -47,11 +49,6 @@ sitting uncommitted in the working tree.
 
 ## Open items / known issues
 
-- **Not merged into `master`.** The merge conflicts on `.gitignore` and was aborted
-  rather than resolved unattended. Upstream rewrote `ios/` as `/ios` and added
-  `/android`; this branch kept `ios/` and appended `build/` + `scripts/ota.env`.
-  Resolution is mechanical — take upstream's two lines, then append both of ours.
-  Everything is pushed to `origin/fix/video-position-sync`, so nothing is at risk.
 - **`origin/claude/video-resume-playback-phu2bg` already does much of this.** A prior
   session built the same feature — same `utils/VideoPlaybackPositions.ts` filename,
   the same "restart feed videos when remounted" decision, plus its own OTA pipeline
@@ -70,14 +67,15 @@ sitting uncommitted in the working tree.
 
 ## Next steps
 
-1. Compare this branch against `origin/claude/video-resume-playback-phu2bg` and decide
-   which implementation survives. Abandon the other rather than merging both.
-2. Resolve the `.gitignore` conflict and merge `fix/video-position-sync` into `master`:
-   keep upstream's `/ios` and `/android`, then append the `build/` and
-   `scripts/ota.env` blocks. Then push and delete the branch.
+1. Decide what to do with `origin/claude/video-resume-playback-phu2bg`. Its version of
+   this feature is now superseded on `master`, so it most likely just gets deleted —
+   but check its OTA pipeline (`scripts/publish-install-page.sh`, `signed-ipa.yml`)
+   for anything worth keeping first, since that half has no equivalent here.
+2. Rebuild and reinstall from `master` — the shipped build predates the 13 upstream
+   commits that merged in (Android app icons, Hydra Pro on Android, sharing fixes).
 3. Use the app normally for a few days and confirm the position sync doesn't misfire
    on galleries with several videos in one post.
 4. If Android ever matters, verify the fullscreen half there.
 5. Consider persisting positions across launches (KeyStore) if session-only turns out
    to be too forgetful in practice.
-6. Prune merged `upstream-sync-*` branches on origin (19 unmerged remote branches).
+6. Prune the `upstream-sync-*` branches on origin (18 unmerged remote branches).
