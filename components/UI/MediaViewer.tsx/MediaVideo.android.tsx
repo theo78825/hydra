@@ -10,6 +10,7 @@ import {
 } from "react-native-safe-area-context";
 import DismountWhenBackgrounded from "../../Other/DismountWhenBackgrounded";
 import VideoCache from "../../../utils/VideoCache";
+import VideoPlaybackPositions from "../../../utils/VideoPlaybackPositions";
 import { Post } from "../../../api/Posts";
 import { AnimatedStyleHandle } from "react-native-reanimated/lib/typescript/hook/commonTypes";
 import {
@@ -47,6 +48,14 @@ function MediaVideo(props: MediaVideoProps) {
         toleranceBefore: 0.1,
         toleranceAfter: 0.1,
       };
+      /**
+       * Picks up where the video left off elsewhere in the app (e.g. playing
+       * in the feed) or before the player was remounted (e.g. by a rotation).
+       */
+      const savedPosition = VideoPlaybackPositions.get(source.source);
+      if (savedPosition) {
+        player.currentTime = savedPosition;
+      }
     },
   );
 
@@ -135,6 +144,7 @@ function MediaVideo(props: MediaVideoProps) {
   });
 
   useEventListener(player, "timeUpdate", (e) => {
+    VideoPlaybackPositions.save(source.source, e.currentTime);
     if (isSeeking.value) return;
     progress.value = e.currentTime / player.duration;
   });

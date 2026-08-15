@@ -16,6 +16,7 @@ import {
 } from "react-native-safe-area-context";
 import DismountWhenBackgrounded from "../../Other/DismountWhenBackgrounded";
 import VideoCache from "../../../utils/VideoCache";
+import VideoPlaybackPositions from "../../../utils/VideoPlaybackPositions";
 import { Post } from "../../../api/Posts";
 
 export type VideoItem = {
@@ -32,12 +33,6 @@ type MediaVideoProps = {
 
 const PLAYBACK_RATES = [0.5, 1, 1.5, 2];
 
-/**
- * Used to restore playback position after rotating the phone.
- */
-let lastPlaybackPosition = 0;
-let lastPlaybackSource = "";
-
 function MediaVideo(props: MediaVideoProps) {
   const { source, focused, overlayOpacity } = props;
   const { width, height } = useSafeAreaFrame();
@@ -49,8 +44,13 @@ function MediaVideo(props: MediaVideoProps) {
       player.audioMixingMode = "mixWithOthers";
       player.loop = true;
       player.timeUpdateEventInterval = 1 / 15;
-      if (lastPlaybackSource === source.source) {
-        player.currentTime = lastPlaybackPosition;
+      /**
+       * Picks up where the video left off elsewhere in the app (e.g. playing
+       * in the feed) or before the player was remounted (e.g. by a rotation).
+       */
+      const savedPosition = VideoPlaybackPositions.get(source.source);
+      if (savedPosition) {
+        player.currentTime = savedPosition;
       }
     },
   );
@@ -122,12 +122,11 @@ function MediaVideo(props: MediaVideoProps) {
 
   useEventListener(player, "timeUpdate", (e) => {
     progress.setValue(e.currentTime / player.duration);
-    lastPlaybackPosition = e.currentTime;
+    VideoPlaybackPositions.save(source.source, e.currentTime);
   });
 
   useEffect(() => {
     if (focused) {
-      lastPlaybackSource = source.source;
       player.play();
       player.volume = 1;
     } else {

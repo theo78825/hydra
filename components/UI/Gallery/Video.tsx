@@ -13,6 +13,7 @@ import { ThemeContext } from "../../../contexts/SettingsContexts/ThemeContext";
 import { MediaViewerContext } from "../../../contexts/MediaViewerContext";
 import DismountWhenBackgrounded from "../../Other/DismountWhenBackgrounded";
 import VideoCache from "../../../utils/VideoCache";
+import VideoPlaybackPositions from "../../../utils/VideoPlaybackPositions";
 
 type VideoProps = {
   uri: string;
@@ -33,6 +34,10 @@ function Video({ uri }: VideoProps) {
       player.bufferOptions = {
         maxBufferBytes: 1024 * 1024 * 5, // 5MB - Android only setting (prevents crashes)
       };
+      const savedPosition = VideoPlaybackPositions.get(uri);
+      if (savedPosition) {
+        player.currentTime = savedPosition;
+      }
       player.play();
     },
   );
@@ -41,6 +46,7 @@ function Video({ uri }: VideoProps) {
 
   useEventListener(player, "timeUpdate", (e) => {
     progress.setValue(e.currentTime / player.duration);
+    VideoPlaybackPositions.save(uri, e.currentTime);
   });
 
   useEffect(() => {
@@ -57,10 +63,18 @@ function Video({ uri }: VideoProps) {
       if (isShowing) {
         player.pause();
       } else {
+        /**
+         * The media viewer may have moved this video forward while it was open,
+         * so pick up wherever it left off instead of where we paused.
+         */
+        const savedPosition = VideoPlaybackPositions.get(uri);
+        if (savedPosition) {
+          player.currentTime = savedPosition;
+        }
         player.play();
       }
     });
-  }, [player, subscribeToVisibility]);
+  }, [player, subscribeToVisibility, uri]);
 
   return (
     <View style={styles.videoContainer} pointerEvents="none">
