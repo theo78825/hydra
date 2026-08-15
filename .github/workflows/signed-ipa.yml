@@ -1,0 +1,221 @@
+name: Signed Hydra IPA
+
+# Builds a *signed* ad-hoc IPA and publishes it as a GitHub Release so an
+# install page (see scripts/publish-install-page.sh) can serve it over the air.
+#
+# This is different from build.yml, which produces an UNSIGNED IPA for
+# sideloading. iOS will not install an unsigned IPA from a web link.
+#
+# ── ONE-TIME SETUP ────────────────────────────────────────────────────────
+# Signing happens with an App Store Connect API key, so no Mac and no
+# exported .p12 are needed — you can set this up entirely from a phone.
+#
+#   1. appstoreconnect.apple.com ▸ Users and Access ▸ Integrations ▸ Keys
+#      ▸ (＋) ▸ Access: "Developer". Download the .p8 — Apple only offers it
+#      once. Note the Key ID and the Issuer ID shown on that page.
+#   2. Add these repository secrets (GitHub ▸ Settings ▸ Secrets and variables
+#      ▸ Actions):
+#        ASC_KEY_ID          the key's ID, e.g. ABC123DEF4
+#        ASC_ISSUER_ID       the issuer UUID from the same page
+#        ASC_KEY_P8_BASE64   base64 of the .p8 file
+#   3. Your iPhone must already be registered with team 3U345JAS74. It is if
+#      you've ever installed via scripts/update-hydra.sh — an ad-hoc profile
+#      includes every registered device.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to build'
+        type: string
+        default: master
+      release_tag:
+        description: 'Release tag (default: install-<version>-<run number>)'
+        type: string
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  # Must match scripts/update-hydra.sh, otherwise the build installs alongside
+  # the copy already on the phone instead of replacing it.
+  TEAM_ID: 3U345JAS74
+  BUNDLE_ID: com.theo78825.hydra
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Check signing secrets are present
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          MISSING=""
+          [ -n "$ASC_KEY_ID" ]        || MISSING="$MISSING ASC_KEY_ID"
+          [ -n "$ASC_ISSUER_ID" ]     || MISSING="$MISSING ASC_ISSUER_ID"
+          [ -n "$ASC_KEY_P8_BASE64" ] || MISSING="$MISSING ASC_KEY_P8_BASE64"
+          if [ -n "$MISSING" ]; then
+            echo "Missing repository secret(s):$MISSING" >> "$GITHUB_STEP_SUMMARY"
+            echo "See the setup notes at the top of this workflow file." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Missing repository secret(s):$MISSING"
+            exit 1
+          fi
+
+      - name: Select latest Xcode
+        run: |
+          LATEST=$(ls /Applications/ | grep "^Xcode" | sort -V | tail -1)
+          echo "Using $LATEST"
+          sudo xcode-select -s "/Applications/$LATEST/Contents/Developer"
+          xcodebuild -version
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Expo Prebuild
+        # HYDRA_BUNDLE_ID makes app.config.ts emit the identifier registered to
+        # your own team, exactly like the local install script does.
+        run: npx expo prebuild --platform ios --clean --non-interactive
+        env:
+          HYDRA_BUNDLE_ID: ${{ env.BUNDLE_ID }}
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+
+      - name: Patch Podfile (Swift concurrency fix)
+        run: |
+          python3 << 'PYEOF'
+          import re
+          with open('ios/Podfile', 'r') as f:
+              content = f.read()
+          if "SWIFT_STRICT_CONCURRENCY" not in content:
+              match = re.search(r'^( *)post_install do \|installer\|$', content, re.MULTILINE)
+              if match:
+                  indent = match.group(1)
+                  insert_pos = match.end() + 1
+                  our_code = (
+                      f'{indent}  installer.pods_project.targets.each do |target|\n'
+                      f'{indent}    target.build_configurations.each do |config|\n'
+                      f"{indent}      config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'\n"
+                      f'{indent}    end\n'
+                      f'{indent}  end\n'
+                  )
+                  content = content[:insert_pos] + our_code + content[insert_pos:]
+                  with open('ios/Podfile', 'w') as f:
+                      f.write(content)
+                  print("Podfile patched")
+          else:
+              print("Already patched")
+          PYEOF
+
+      - name: Pod Install
+        run: cd ios && pod install
+
+      - name: Write App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          mkdir -p "$HOME/private_keys"
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+
+      - name: Archive (signed, automatic provisioning)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+        run: |
+          xcodebuild archive \
+            -workspace ios/Hydra.xcworkspace \
+            -scheme Hydra \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Hydra.xcarchive \
+            -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic
+
+      - name: Export ad-hoc IPA
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          # Xcode 16 renamed the ad-hoc export method to "release-testing" but
+          # older toolchains only know "ad-hoc", so try the new name first.
+          export_with_method() {
+            cat > build/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>$1</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>stripSwiftSymbols</key><true/>
+            <key>compileBitcode</key><false/>
+            <key>destination</key><string>export</string>
+          </dict>
+          </plist>
+          PLIST
+            xcodebuild -exportArchive \
+              -archivePath build/Hydra.xcarchive \
+              -exportPath build/export \
+              -exportOptionsPlist build/ExportOptions.plist \
+              -allowProvisioningUpdates \
+              -authenticationKeyPath "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" \
+              -authenticationKeyID "$ASC_KEY_ID" \
+              -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          }
+
+          export_with_method "release-testing" || export_with_method "ad-hoc"
+
+          IPA=$(find build/export -maxdepth 1 -name '*.ipa' | head -1)
+          [ -n "$IPA" ] || { echo "::error::Export finished but produced no .ipa"; exit 1; }
+          mv "$IPA" build/Hydra.ipa
+          ls -lh build/Hydra.ipa
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="${{ inputs.release_tag }}"
+          [ -n "$TAG" ] || TAG="install-${VERSION}-${{ github.run_number }}"
+
+          gh release create "$TAG" build/Hydra.ipa \
+            --target "${{ github.sha }}" \
+            --title "Hydra $VERSION (${{ inputs.ref }})" \
+            --notes "Signed ad-hoc build of \`${{ inputs.ref }}\` at ${{ github.sha }}.
+
+          Publish it to the install page with:
+          \`\`\`
+          HYDRA_INSTALL_BASE_URL=https://your-pi/hydra scripts/publish-install-page.sh $TAG
+          \`\`\`"
+
+          echo "### Released \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Run \`scripts/publish-install-page.sh $TAG\` on the Pi to serve it." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hydra-signed-IPA
+          path: build/Hydra.ipa
+          retention-days: 7
