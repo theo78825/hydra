@@ -4,7 +4,24 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:www.npmjs.com)",
-      "WebFetch(domain:docs.swmansion.com)"
+      "WebFetch(domain:docs.swmansion.com)",
+      "Bash(gh auth *)",
+      "Bash(gh workflow *)",
+      "Bash(gh run *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/react-native-mmkv/package.json'\\).version\\)\")",
+      "Bash(npm ci *)",
+      "Bash(npx expo *)",
+      "Bash(node_modules/.bin/expo install *)",
+      "Bash(ls -la package-lock.json npm-shrinkwrap.json yarn.lock bun.lockb 2>&1; echo \"---debug log tail---\"; tail -25 /Users/samalbert/.npm/_logs/2026-06-07T22_47_10_447Z-debug-0.log)",
+      "Bash(node -e \"console.log\\('document-picker', require\\('./node_modules/expo-document-picker/package.json'\\).version\\); console.log\\('file-system', require\\('./node_modules/expo-file-system/package.json'\\).version\\)\")",
+      "Bash(git ls-remote *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(chmod +x ~/hydra-custom/scripts/download-latest-ipa.sh)",
+      "Bash(launchctl load *)",
+      "Read(//Users/samalbert/**)",
+      "Bash(launchctl unload *)"
     ]
   }
 }
