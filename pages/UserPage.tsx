@@ -25,6 +25,7 @@ import URL from "../utils/URL";
 import { useURLNavigation } from "../utils/navigation";
 import useRedditDataState from "../utils/useRedditDataState";
 import AccessFailureComponent from "../components/UI/AccessFailureComponent";
+import { SubredditContext } from "../contexts/SubredditContext";
 
 export default function UserPage({ route }: StackPageProps<"UserPage">) {
   const url = route.params.url;
@@ -36,6 +37,7 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
 
   const { theme } = useContext(ThemeContext);
   const { currentUser } = useContext(AccountContext);
+  const { subreddits } = useContext(SubredditContext);
 
   const [user, setUser] = useState<User>();
 
@@ -82,7 +84,10 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
   useEffect(() => {
     const contextOptions: ContextTypes[] = ["Block", "Share"];
     if (currentUser?.userName !== user?.userName) {
-      contextOptions.unshift("Message");
+      const isFollowing = subreddits.subscriber.some(
+        (sub) => sub.name === `u_${user?.userName}`,
+      );
+      contextOptions.unshift(isFollowing ? "Unfollow" : "Follow", "Message");
     }
     const sortOptions: SortTypes[] | undefined =
       section === "submitted" || section === "comments"
@@ -101,7 +106,7 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
         );
       },
     });
-  }, [sort, sortTime, user]);
+  }, [sort, sortTime, user, subreddits.subscriber.length]);
 
   return (
     <View
@@ -127,6 +132,7 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
           fullyLoaded={fullyLoaded}
           hitFilterLimit={hitFilterLimit}
           data={userContent}
+          noDataFoundMessage={`${user?.userName ?? "This user"} has no activity or has set their account to private.`}
           renderItem={({ item: content }) => {
             if (content.type === "post") {
               return (
@@ -140,7 +146,6 @@ export default function UserPage({ route }: StackPageProps<"UserPage">) {
               return (
                 <CommentComponent
                   comment={content}
-                  index={0}
                   displayInList
                   changeComment={(newComment) =>
                     modifyUserContent([newComment])
@@ -161,11 +166,5 @@ const styles = StyleSheet.create({
   userContainer: {
     flex: 1,
     justifyContent: "center",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  loaderContainer: {
-    marginTop: 20,
   },
 });
