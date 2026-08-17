@@ -1,4 +1,3 @@
-import "react-native-url-polyfill/auto";
 import { decode } from "html-entities";
 
 import { Flair, formatFlair } from "./Flair";
@@ -178,6 +177,12 @@ export async function getPostsDetail(
   };
 }
 
+export type LoadMoreCommentsFunc = (
+  commentIds: string[],
+  commentPath: number[],
+  childStartIndex: number,
+) => Promise<void>;
+
 export async function loadMoreComments(
   subreddit: string,
   postId: string,
@@ -279,6 +284,7 @@ export async function submitPost(
         title,
         ...(flairId ? { flair_id: flairId } : {}),
         [kind === "self" ? "text" : "url"]: content,
+        sendreplies: "true",
         extension: "json",
       },
     },
