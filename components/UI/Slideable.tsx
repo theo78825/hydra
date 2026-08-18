@@ -19,7 +19,7 @@ import { runOnJS } from "react-native-worklets";
 import { ScrollerContext } from "../../contexts/ScrollerContext";
 import { ThemeContext } from "../../contexts/SettingsContexts/ThemeContext";
 import { GesturesContext } from "../../contexts/SettingsContexts/GesturesContext";
-import { IconProps } from "@expo/vector-icons/build/createIconSet";
+import type { IconProps } from "@react-native-vector-icons/common";
 
 const SHORT_SWIPE_THRESHOLD = 75;
 const LONG_SWIPE_THRESHOLD = 130;
@@ -31,7 +31,7 @@ const SPRING_CONFIG = {
   mass: 1,
 };
 
-type SlideItem<SlideName extends string> = {
+export type SlideItem<SlideName extends string> = {
   name: SlideName;
   icon: ReactElement<IconProps<string>>;
   size?: number;
@@ -59,6 +59,16 @@ function levelForDelta(delta: number) {
         : 0;
   return delta > 0 ? magnitude : delta < 0 ? -magnitude : 0;
 }
+
+/**
+ * There's a shadow tree corruption bug in RNGH v3's GestureDetector
+ * (https://github.com/software-mansion/react-native-gesture-handler/issues/4241).
+ *
+ * This bug causes a crash when interacting with the top comment in a large comment
+ * tree. It also seems to be related to TextWithRepairedHeight, but I'm not certain
+ * if it's the same bug or 2 distinct bugs. The crash only seems to happen in
+ * development builds.
+ */
 
 export default function Slideable<SlideName extends string>({
   children,
