@@ -1,12 +1,10 @@
-import {
-  AntDesign,
-  MaterialCommunityIcons,
-  MaterialIcons,
-  SimpleLineIcons,
-  Entypo,
-  FontAwesome,
-  Ionicons,
-} from "@expo/vector-icons";
+import AntDesign from "@react-native-vector-icons/ant-design";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons";
+import SimpleLineIcons from "@react-native-vector-icons/simple-line-icons";
+import Entypo from "@react-native-vector-icons/entypo";
+import FontAwesome from "@react-native-vector-icons/fontawesome";
+import Ionicons from "@react-native-vector-icons/ionicons";
 import { RouteProp } from "@react-navigation/native";
 import React, { useContext, useRef } from "react";
 import { StyleSheet, View, Alert, findNodeHandle } from "react-native";
@@ -39,6 +37,8 @@ import NewPost from "../Modals/NewPost";
 import SelectText from "../Modals/SelectText";
 import { FiltersContext } from "../../contexts/SettingsContexts/FiltersContext";
 import { shareURL } from "../../utils/sharing";
+import ShareAsImage from "../Modals/ShareAsImage/ShareAsImage";
+import { ToastContext } from "../../contexts/ToastContext";
 
 export type SortTypes =
   | "Best"
@@ -57,6 +57,8 @@ export type ContextTypes =
   | "Select Text"
   | "Subscribe"
   | "Unsubscribe"
+  | "Follow"
+  | "Unfollow"
   | "Favorite"
   | "Unfavorite"
   | "New Post"
@@ -70,7 +72,8 @@ export type ContextTypes =
   | "Hide Seen Posts"
   | "Sidebar"
   | "Wiki"
-  | "Open in Gallery Mode";
+  | "Open in Gallery Mode"
+  | "Share as Image";
 
 type SortAndContextProps = {
   route: RouteProp<StackParamsList, URLRoutes> | string;
@@ -92,6 +95,7 @@ export default function SortAndContext({
   const { subscribe, unsubscribe, toggleFavorite, multis, addSubToMulti } =
     useContext(SubredditContext);
   const { toggleHideSeenURL } = useContext(FiltersContext);
+  const { showToast } = useContext(ToastContext);
 
   const { replaceURL, pushURL, setParams, openGallery } = useURLNavigation();
 
@@ -307,6 +311,10 @@ export default function SortAndContext({
               subscribe(new RedditURL(currentPath).getSubreddit());
             } else if (result === "Unsubscribe") {
               unsubscribe(new RedditURL(currentPath).getSubreddit());
+            } else if (result === "Follow" && pageData?.type === "user") {
+              subscribe(`u_${pageData.userName}`);
+            } else if (result === "Unfollow" && pageData?.type === "user") {
+              unsubscribe(`u_${pageData.userName}`);
             } else if (result === "Favorite" || result === "Unfavorite") {
               toggleFavorite(new RedditURL(currentPath).getSubreddit());
             } else if (result === "Add to Multireddit") {
@@ -335,7 +343,10 @@ export default function SortAndContext({
             } else if (result === "Delete" && pageData?.type === "postDetail") {
               try {
                 await deleteUserContent(pageData);
-                alert("Post deleted");
+                showToast({
+                  title: "Post deleted",
+                  body: "The post has been deleted successfully",
+                });
                 navigation.goBack();
               } catch (_e) {
                 alert("Failed to delete post");
@@ -384,6 +395,11 @@ export default function SortAndContext({
               pushURL(`https://www.reddit.com/r/${subreddit}/wiki/index`);
             } else if (result === "Open in Gallery Mode") {
               openGallery(currentPath);
+            } else if (
+              result === "Share as Image" &&
+              pageData?.type === "postDetail"
+            ) {
+              setModal(<ShareAsImage postDetail={pageData} />);
             }
           }}
         >
