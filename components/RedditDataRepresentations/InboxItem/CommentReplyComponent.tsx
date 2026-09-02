@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import Feather from "@react-native-vector-icons/feather";
 import React, { useContext } from "react";
 import { StyleSheet, View, Text } from "react-native";
 
@@ -62,7 +62,7 @@ export default function CommentReplyComponent({
           action: async () => voteOnMessage(VoteOption.UpVote),
         },
         {
-          name: "Feather",
+          name: "downvote",
           icon: <Feather name="arrow-down" />,
           color: theme.downvote,
           action: async () => voteOnMessage(VoteOption.DownVote),
@@ -86,11 +86,14 @@ export default function CommentReplyComponent({
           },
         ]}
         onPress={() => {
-          setInboxItemNewStatus(commentReply, false);
-          setMessage({
-            ...commentReply,
-            new: false,
-          });
+          if (commentReply.new) {
+            setInboxItemNewStatus(commentReply, false);
+            setInboxCount(inboxCount - 1);
+            setMessage({
+              ...commentReply,
+              new: false,
+            });
+          }
           pushURL(commentReply.contextLink);
         }}
         onLongPress={async () => {

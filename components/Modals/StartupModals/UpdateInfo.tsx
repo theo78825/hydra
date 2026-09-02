@@ -1,4 +1,5 @@
-import { FontAwesome, FontAwesome6 } from "@expo/vector-icons";
+import FontAwesome from "@react-native-vector-icons/fontawesome";
+import FontAwesome6 from "@react-native-vector-icons/fontawesome6";
 import React, { useContext } from "react";
 import { View, StyleSheet, ScrollView, Image } from "react-native";
 import { Touchable } from "react-native-gesture-handler";
@@ -7,101 +8,133 @@ import { ThemeContext } from "../../../contexts/SettingsContexts/ThemeContext";
 import GetHydraProButton from "../../UI/GetHydraProButton";
 import KeyStore from "../../../utils/KeyStore";
 import { TextWithRepairedHeight } from "../../Other/TextWithRepairedHeight";
+import { useURLNavigation } from "../../../utils/navigation";
+import { StackActions } from "@react-navigation/native";
 
 export const LAST_SEEN_UPDATE_KEY = "lastSeenUpdate";
 
 export const updateInfo = {
-  updateKey: "v4.1.0",
+  updateKey: "v4.2.0",
   title: "Update",
   subtitle: "Here's what's new in this update",
-  proFeatures: [] as { title: string; description: string }[],
+  proFeatures: [
+    {
+      title: "Export Videos with Audio",
+      description:
+        "Shared and downloaded videos now automatically mux the audio track into the saved video file.",
+    },
+    {
+      title: "Collapsed Summaries",
+      description:
+        "Make post and comment summaries start collapsed. Enable this under Settings => Appearance => Post/Comment section => Start summary collapsed.",
+    },
+    {
+      title: "No Automod in Summaries",
+      description:
+        "Template automoderator comments will be ignored in comment summaries.",
+    },
+    {
+      title: "Smarter Post Filters",
+      description:
+        "The smart post filter has been upgraded to use a better model. This should help reduce the number of false positives and false negatives for the filter you've written in Settings => General => Filters => Smart Post Filter.",
+    },
+  ] as { title: string; description: string }[],
   features: [
     {
-      title: "Fast Account Swap",
+      title: "Share as Image",
       description:
-        "Long press the accounts tab to quickly switch between accounts.",
+        "Export a post or a comment thread as an image. Long press on a comment or press the ... button while inside a post to open up the Share as Image menu. Upgrade to Hydra Pro to remove the small Hydra watermark.",
     },
     {
-      title: "New Multireddit Sort Options",
+      title: "Media Player Redesign",
       description:
-        "You can now set a default sort and enable sort remembering for multireddits. Enable this in Settings => General => Post & Comment Sorting => Multireddits.",
+        "The new media player adds new controls and a more intuitive UI. It also comes with significant performance improvements. Swipe anywhere to seek in a video is now off by default. You can reenable it in Settings => Appearance => Slide anywhere to scrub videos.",
     },
     {
-      title: "Smoother Gestures",
+      title: "Better Gallery Mode Support",
       description:
-        "The gesture system has been fully rewritten. You'll notice this most with slide gestures on posts and comments.",
+        "Gallery Mode can now be opened when viewing your saved posts, your upvoted/downvoted posts, and on user pages.",
     },
     {
-      title: "Faster Post & Comment Rendering",
+      title: "Follow Users",
       description:
-        "Posts should display faster now, particularly for posts with large bodies or large tables.",
+        "When on a user page, you can now follow and unfollow users. Press the ... button in the top right corner of a user page to see these options.",
+    },
+    {
+      title: "Remap Outbound Links",
+      description:
+        "Write custom JavaScript to remap outbound links. For example, you can redirect all outbound links from x.com to xcancel.com. Set this up in Settings => General => External Links => Modify Links.",
+    },
+    {
+      title: "Download Progress Indicator",
+      description:
+        "When downloading or sharing media, a progress circle appears around the button indicating download progress.",
+    },
+    {
+      title: "Toast Indicators",
+      description:
+        "Previously, many actions in Hydra would display a blocking alert. These have been replaced with a non intrusive toast that slides in from the top of the screen.",
+    },
+    {
+      title: "Updated Guide",
+      description:
+        "The guide's contents have been updated to align more closely with all the features and changes added to Hydra since it was first built. Check it out in Settings => Guide.",
+    },
+    {
+      title: "Reorganized Settings",
+      description:
+        "Settings are now organized into groups to make options easier to find. The settings tab now has links to Hydra related websites, servers, and subreddits.",
+    },
+    {
+      title: "Added a Tip Jar",
+      description:
+        "I've had a few people tell me they aren't interested in Hydra Pro, but would still like a way to contribute. You can access this in Settings => Tip Jar.",
+    },
+    {
+      title: "Improved Comments Performance",
+      description: "Very long comment sections should render a bit faster now.",
     },
   ] as { title: string; description: string }[],
   bugfixes: [
     {
-      description: "Hydra would not load any data if you were logged out.",
+      description: "Videos would sometimes display as a black screen.",
     },
     {
       description:
-        "The video player would restart the video when changing device orientation.",
+        "Image thumbnails in compact mode would show up on the wrong post for link posts and multi image posts.",
     },
     {
       description:
-        "Scrolling horizontally on wide tables in comments would sometimes slide the comment instead.",
-    },
-    {
-      description: "Videos in comments would link to an unreachable URL.",
+        "RedGif videos would load forever if they had been deleted. They now show an indicator.",
     },
     {
       description:
-        "Video thumbnails would load at the lowest quality when video autoplay was disabled.",
+        "Trying to load deleted RedGif videos would result in being rate limited.",
+    },
+    {
+      description: "Sorting by top would lock the app on Android.",
     },
     {
       description:
-        "Posts with media that Reddit failed to process would not load.",
+        "Subreddit image icons could be slow to load on a bad connection.",
+    },
+    {
+      description: "Certain subreddit images would fail to load.",
+    },
+    {
+      description: "Posts linking to Imgur would show a link, but no image.",
     },
     {
       description:
-        "Changing device orientation while seeking through a video could cause Hydra to crash.",
+        "Posts made in Hydra would not get inbox replies in certain cases.",
     },
     {
       description:
-        "Posts linking to certain RedGifs URLs would cause Hydra to crash.",
+        "The inbox tab would not immediately update the unread message badge counter when opening an unread message.",
     },
     {
       description:
-        "Posts in compact mode would sometimes show the wrong thumbnail.",
-    },
-    {
-      description:
-        "The post and link description max lines settings in Settings => Appearance could not be set to 0.",
-    },
-    {
-      description: "Tweaked the media viewer animations to feel more fluid.",
-    },
-    {
-      description:
-        "The Hydra Pro offer modal would show up even if you were already subscribed.",
-    },
-    {
-      description:
-        "Clicking on post media would sometimes fail to mark the post as read.",
-    },
-    {
-      description:
-        "In light themes, videos would flash when a scroll gesture started on them.",
-    },
-    {
-      description:
-        "Changing orientation while scrolled deep in gallery mode would cause visual bugs.",
-    },
-    {
-      description:
-        "Clicking on links in compact mode would sometimes open the thumbnail as an image instead of opening the link.",
-    },
-    {
-      description:
-        'Accounts with "Don\'t show thumbnails next to links" enabled in their old Reddit preferences would cause images to fail to load.',
+        "User pages would load forever instead of indicating if they had no posts or were set to private.",
     },
   ] as { description: string }[],
   notes: [
@@ -112,6 +145,7 @@ export const updateInfo = {
 
 export default function UpdateInfo({ onExit }: { onExit: () => void }) {
   const { theme } = useContext(ThemeContext);
+  const { dispatch } = useURLNavigation();
 
   const exitUpdateInfo = () => {
     KeyStore.set(LAST_SEEN_UPDATE_KEY, updateInfo.updateKey);
@@ -140,7 +174,12 @@ export default function UpdateInfo({ onExit }: { onExit: () => void }) {
           ]}
           onPress={() => exitUpdateInfo()}
         >
-          <FontAwesome6 name="xmark" size={16} color={theme.subtleText} />
+          <FontAwesome6
+            iconStyle="solid"
+            name="xmark"
+            size={16}
+            color={theme.subtleText}
+          />
         </Touchable>
         <View style={styles.versionBadge}>
           <TextWithRepairedHeight
@@ -199,7 +238,8 @@ export default function UpdateInfo({ onExit }: { onExit: () => void }) {
                     style={[
                       styles.featureContainer,
                       {
-                        backgroundColor: theme.divider,
+                        backgroundColor: theme.background,
+                        borderColor: theme.divider,
                       },
                     ]}
                   >
@@ -380,7 +420,28 @@ export default function UpdateInfo({ onExit }: { onExit: () => void }) {
               you can make a pull request at https://github.com/dmilin1/hydra
             </TextWithRepairedHeight>
           </View>
-          <GetHydraProButton onPress={() => exitUpdateInfo()} />
+          <View style={styles.getHydraProContainer}>
+            <GetHydraProButton onPress={() => exitUpdateInfo()} />
+          </View>
+          <Touchable
+            style={styles.tipJarContainer}
+            activeOpacity={0.5}
+            animationDuration={{ in: 0, out: 150 }}
+            onPress={() => {
+              dispatch(
+                StackActions.push("SettingsPage", {
+                  url: "hydra://settings/tipJar",
+                }),
+              );
+              exitUpdateInfo();
+            }}
+          >
+            <TextWithRepairedHeight
+              style={[styles.tipJarText, { color: theme.iconOrTextButton }]}
+            >
+              Leave a tip
+            </TextWithRepairedHeight>
+          </Touchable>
         </ScrollView>
       </View>
       <Touchable style={styles.background} onPress={() => exitUpdateInfo()} />
@@ -509,5 +570,18 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     gap: 15,
+  },
+  getHydraProContainer: {
+    marginTop: 10,
+  },
+  tipJarContainer: {
+    paddingTop: 10,
+    paddingBottom: 30,
+    marginHorizontal: 20,
+  },
+  tipJarText: {
+    fontSize: 16,
+    fontWeight: "500",
+    textAlign: "center",
   },
 });
