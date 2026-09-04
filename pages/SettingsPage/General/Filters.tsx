@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { FontAwesome, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useContext, useState } from "react";
 import {
@@ -11,6 +12,12 @@ import {
   View,
 } from "react-native";
 import { useMMKVObject } from "react-native-mmkv";
+=======
+import FontAwesome from "@react-native-vector-icons/fontawesome";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import React, { useContext } from "react";
+import { Alert, StyleSheet, Switch, Text, View } from "react-native";
+>>>>>>> upstream/master
 
 import List from "../../../components/UI/List";
 import SectionTitle from "../../../components/UI/SectionTitle";
