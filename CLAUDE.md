@@ -77,3 +77,26 @@ Consequences:
   versions for whatever SDK is in `node_modules`, so a stale install yields the old
   SDK's versions. And `--fast` builds are wrong after an SDK bump — the native
   project needs a fresh prebuild and pod install.
+
+## Expo module versions must match `expo-modules-core` (launch crash)
+
+`npx expo install <pkg>` picks the **newest patch** in the SDK line, which can be
+far ahead of the `expo-modules-core` that upstream's lockfile pins. Expo ships these
+modules as **prebuilt binaries**, so nothing fails at build time: `tsc`, lint,
+`expo export`, and a green `xcodebuild` all pass, and the app then dies instantly
+on launch with `dyld: Symbol not found: _$s15ExpoModulesCore…`.
+
+This bit the v4.2.2 merge: `expo-file-system@57.0.7` (built against core 57.0.18)
+against upstream's core 57.0.8. Fix was pinning `expo-file-system` and
+`expo-document-picker` **exactly** to `57.0.1`, the version upstream's own lockfile
+uses. A `~` range floats back up on the next fresh install.
+
+- When re-adding an Expo package upstream dropped, pin it to the version in
+  upstream's `package-lock.json`, or one published no later than the pinned core.
+- Don't reach for `npx expo install --fix` to realign: it also **downgrades**
+  deliberate majors (Sentry 8→7, gesture-handler 3→2 — upstream's player needs v3).
+- Verify before shipping a build: launch it. With the phone unreachable, a Release
+  Simulator build (`SENTRY_DISABLE_AUTO_UPLOAD=true`, `CODE_SIGNING_ALLOWED=NO`) and
+  `xcrun simctl launch --console-pty` reproduce dyld crashes. Or diff each
+  framework's `nm -u` symbols containing `15ExpoModulesCore` against
+  `nm -gU ExpoModulesCore`; any leftover is a guaranteed launch crash.
