@@ -1,8 +1,8 @@
-import { File, Paths } from "expo-file-system";
 import { useContext, useRef } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Share,
   View,
   StyleSheet,
@@ -11,11 +11,26 @@ import {
 } from "react-native";
 import { Touchable } from "react-native-gesture-handler";
 import { ImageSource } from "expo-image";
+import {
+  Asset as MediaLibraryAsset,
+  requestPermissionsAsync as requestMediaLibraryPermissionsAsync,
+} from "expo-media-library";
 import { shareAsync } from "expo-sharing";
 
-import URL from "./URL";
 import { ModalContext } from "../contexts/ModalContext";
 import { ThemeContext } from "../contexts/SettingsContexts/ThemeContext";
+import { download, UserCancelledVideoMuxError } from "./download";
+import { SubscriptionsContext } from "../contexts/SubscriptionsContext";
+import {
+  NavigationContainerRef,
+  StackActions,
+  TabActions,
+  useNavigation,
+} from "@react-navigation/native";
+import { AppNavigationProp } from "./navigationTypes";
+import { PageTypeToNavName } from "./PageTypeToNavName";
+import { PageType } from "./RedditURL";
+import { MediaViewerContext } from "../contexts/MediaViewerContext";
 
 export function shareURL(url: string) {
   return Share.share(Platform.OS === "ios" ? { url } : { message: url });
@@ -24,50 +39,62 @@ export function shareURL(url: string) {
 export function useMediaSharing() {
   const { setModal } = useContext(ModalContext);
   const { theme } = useContext(ThemeContext);
+  const { isPro } = useContext(SubscriptionsContext);
+  const { closeMediaViewer } = useContext(MediaViewerContext);
+
+  const navigation = useNavigation<NavigationContainerRef<AppNavigationProp>>();
 
   const alreadyAsking = useRef(false);
 
   return async (
     type: "image" | "video",
     mediaSource: string | ImageSource[],
+    onProgress?: (progress: number) => void,
   ) => {
     if (alreadyAsking.current) return;
     alreadyAsking.current = true;
     const mediaUrl =
       typeof mediaSource === "string" ? mediaSource : mediaSource.at(-1)?.uri;
-    if (!mediaUrl) return;
+    if (!mediaUrl) {
+      alreadyAsking.current = false;
+      return;
+    }
     try {
-      setModal(
-        <Touchable style={styles.modalContainer} onPress={() => setModal(null)}>
-          <View
-            style={[
-              styles.modal,
-              {
-                backgroundColor: theme.background,
-                borderColor: theme.divider,
-              },
-            ]}
+      if (!onProgress) {
+        setModal(
+          <Touchable
+            style={styles.modalContainer}
+            onPress={() => setModal(null)}
           >
-            <Text
+            <View
               style={[
-                styles.title,
+                styles.modal,
                 {
-                  color: theme.text,
+                  backgroundColor: theme.background,
+                  borderColor: theme.divider,
                 },
               ]}
             >
-              Preparing {type === "image" ? "Image" : "Video"}...
-            </Text>
-            <ActivityIndicator size="small" />
-          </View>
-        </Touchable>,
-      );
-      const fileName = new URL(mediaUrl).getBasePath().split("/").pop();
-      const file = new File(`${Paths.cache.uri}/${fileName}`);
-      if (file.exists) {
-        file.delete();
+              <Text
+                style={[
+                  styles.title,
+                  {
+                    color: theme.text,
+                  },
+                ]}
+              >
+                Preparing {type === "image" ? "Image" : "Video"}...
+              </Text>
+              <ActivityIndicator size="small" />
+            </View>
+          </Touchable>,
+        );
       }
-      await File.downloadFileAsync(mediaUrl, file);
+      const { file, cleanup } = await download({
+        url: mediaUrl,
+        isPro,
+        onProgress,
+      });
       setModal(null);
       if (Platform.OS === "ios") {
         await Share.share({
@@ -78,12 +105,82 @@ export function useMediaSharing() {
           mimeType: type === "image" ? "image/jpeg" : "video/mp4",
         });
       }
-      file.delete();
-    } catch (_e) {
-      Alert.alert("Error", `Failed to download ${type}`);
+      cleanup();
+    } catch (e) {
+      if (e instanceof UserCancelledVideoMuxError) {
+        closeMediaViewer();
+        navigation.dispatch(TabActions.jumpTo("Posts"));
+        navigation.dispatch(
+          StackActions.push(PageTypeToNavName[PageType.SETTINGS], {
+            url: "hydra://settings/hydraPro",
+          }),
+        );
+      } else {
+        Alert.alert("Error", `Failed to download ${type}`);
+      }
       setModal(null);
     }
     alreadyAsking.current = false;
+  };
+}
+
+export function useMediaSaving() {
+  const { isPro } = useContext(SubscriptionsContext);
+  const { closeMediaViewer } = useContext(MediaViewerContext);
+
+  const navigation = useNavigation<NavigationContainerRef<AppNavigationProp>>();
+
+  const alreadySaving = useRef(false);
+
+  return async (
+    type: "image" | "video",
+    mediaSource: string | ImageSource[],
+    onProgress?: (progress: number) => void,
+  ): Promise<boolean> => {
+    if (alreadySaving.current) return false;
+    alreadySaving.current = true;
+    try {
+      const mediaUrl =
+        typeof mediaSource === "string" ? mediaSource : mediaSource.at(-1)?.uri;
+      if (!mediaUrl) {
+        return false;
+      }
+      const { granted } = await requestMediaLibraryPermissionsAsync(true);
+      if (!granted) {
+        Alert.alert(
+          "Permission Needed",
+          "Hydra needs permission to add media to your photo library.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ],
+        );
+        return false;
+      }
+      const { file, cleanup } = await download({
+        url: mediaUrl,
+        isPro,
+        onProgress,
+      });
+      await MediaLibraryAsset.create(file.uri);
+      cleanup();
+      return true;
+    } catch (e) {
+      if (e instanceof UserCancelledVideoMuxError) {
+        closeMediaViewer();
+        navigation.dispatch(TabActions.jumpTo("Posts"));
+        navigation.dispatch(
+          StackActions.push(PageTypeToNavName[PageType.SETTINGS], {
+            url: "hydra://settings/hydraPro",
+          }),
+        );
+      } else {
+        Alert.alert("Error", `Failed to save ${type}`);
+      }
+      return false;
+    } finally {
+      alreadySaving.current = false;
+    }
   };
 }
 

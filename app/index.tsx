@@ -4,12 +4,11 @@ import "@expo/metro-runtime";
 import "expo-dev-client";
 
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Sentry from "@sentry/react-native";
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { registerRootComponent } from "expo";
 import { useFonts } from "expo-font";
-import { SplashScreen } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { AppState, LogBox } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -36,6 +35,7 @@ import { ERROR_REPORTING_STORAGE_KEY } from "../pages/SettingsPage/Privacy";
 import KeyStore from "../utils/KeyStore";
 import { TabScrollProvider } from "../contexts/TabScrollContext";
 import { StartupModalProvider } from "../contexts/StartupModalContext";
+import { ToastProvider } from "../contexts/ToastProvider";
 import { modifyStat, Stat } from "../db/functions/Stats";
 import { ActionSheetBgProvider } from "../contexts/ActionSheetBgProvider";
 import VideoCache from "../utils/VideoCache";
@@ -57,6 +57,7 @@ Sentry.init({
   tracesSampleRate: 0.1,
   profilesSampleRate: 0.1,
   integrations: [sentryNavigationIntegration],
+  enableTombstone: true,
 
   // Disable app hang tracking because it's bugged when asking for permissions
   // https://stackoverflow.com/a/79085057
@@ -75,7 +76,6 @@ function RootLayout() {
 
   const [fontsLoaded, _fontsError] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-    ...FontAwesome.font,
   });
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
@@ -119,26 +119,28 @@ function RootLayout() {
           <AccountProvider>
             <SubscriptionsProvider>
               <SettingsProvider>
-                <TabScrollProvider>
-                  <NavigationProvider>
-                    <ActionSheetProvider>
-                      <ActionSheetBgProvider>
-                        <InboxProvider>
-                          <ModalProvider>
-                            <MediaViewerProvider>
-                              <SubredditProvider>
-                                <StartupModalProvider>
-                                  <SubscribeToHydra />
-                                  <Tabs />
-                                </StartupModalProvider>
-                              </SubredditProvider>
-                            </MediaViewerProvider>
-                          </ModalProvider>
-                        </InboxProvider>
-                      </ActionSheetBgProvider>
-                    </ActionSheetProvider>
-                  </NavigationProvider>
-                </TabScrollProvider>
+                <ToastProvider>
+                  <TabScrollProvider>
+                    <NavigationProvider>
+                      <ActionSheetProvider>
+                        <ActionSheetBgProvider>
+                          <InboxProvider>
+                            <ModalProvider>
+                              <MediaViewerProvider>
+                                <SubredditProvider>
+                                  <StartupModalProvider>
+                                    <SubscribeToHydra />
+                                    <Tabs />
+                                  </StartupModalProvider>
+                                </SubredditProvider>
+                              </MediaViewerProvider>
+                            </ModalProvider>
+                          </InboxProvider>
+                        </ActionSheetBgProvider>
+                      </ActionSheetProvider>
+                    </NavigationProvider>
+                  </TabScrollProvider>
+                </ToastProvider>
               </SettingsProvider>
             </SubscriptionsProvider>
           </AccountProvider>

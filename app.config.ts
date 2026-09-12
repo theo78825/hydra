@@ -10,6 +10,13 @@ const IS_DEV = process.env.APP_VARIANT === "development";
 // daily upstream sync keep the default below untouched.
 const BUNDLE_ID = process.env.HYDRA_BUNDLE_ID ?? "com.dmilin.hydra";
 
+const REDDIT_DEEP_LINK_HOSTS = [
+  "reddit.com",
+  "www.reddit.com",
+  "old.reddit.com",
+  "new.reddit.com",
+];
+
 module.exports = {
   expo: {
     name: "Hydra",
@@ -21,11 +28,6 @@ module.exports = {
     icon: "./assets/images/icon.png",
     scheme: "hydra",
     userInterfaceStyle: "automatic",
-    splash: {
-      image: "./assets/images/splash.png",
-      resizeMode: "contain",
-      backgroundColor: "#000000",
-    },
     assetBundlePatterns: ["**/*"],
     ios: {
       appStoreUrl:
@@ -42,6 +44,16 @@ module.exports = {
         foregroundImage: "./assets/images/icon_android.png",
         backgroundColor: "#000000",
       },
+      intentFilters: [
+        {
+          action: "VIEW",
+          category: ["BROWSABLE", "DEFAULT"],
+          data: REDDIT_DEEP_LINK_HOSTS.flatMap((host) => [
+            { scheme: "https", host },
+            { scheme: "http", host },
+          ]),
+        },
+      ],
     },
     web: {
       bundler: "metro",
@@ -54,7 +66,6 @@ module.exports = {
     },
     owner: "dmilin",
     plugins: [
-      "expo-router",
       [
         "expo-media-library",
         {
@@ -98,12 +109,22 @@ module.exports = {
           initialOrientation: "DEFAULT",
         },
       ],
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/images/icon_transparent.png",
+          resizeMode: "contain",
+          backgroundColor: "#000000",
+          imageWidth: 150,
+        }
+      ],
       "expo-font",
       "expo-image",
       "expo-secure-store",
       "expo-sqlite",
       "expo-video",
       "expo-web-browser",
+      "expo-status-bar",
     ],
     updates: {
       url: `https://u.expo.dev/${projectId}`,

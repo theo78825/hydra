@@ -1,8 +1,9 @@
 import { useRecyclingState } from "@shopify/flash-list";
 import { Image, ImageSource } from "expo-image";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useContext } from "react";
 import { ScrollView } from "react-native";
 import { useSafeAreaFrame } from "react-native-safe-area-context";
+import { PostSettingsContext } from "../../../contexts/SettingsContexts/PostSettingsContext";
 
 export type ImageItem = {
   type: "image";
@@ -15,6 +16,8 @@ export type MediaImageProps = {
 };
 
 export function MediaImage({ item, setIsScrollLocked }: MediaImageProps) {
+  const { liveTextInteraction } = useContext(PostSettingsContext);
+
   const { width, height } = useSafeAreaFrame();
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -127,6 +130,7 @@ export function MediaImage({ item, setIsScrollLocked }: MediaImageProps) {
         onLoad={() => setIsLoaded(true)}
         transition={150}
         allowDownscaling={false}
+        enableLiveTextInteraction={liveTextInteraction}
         recyclingKey={
           typeof highestResSource === "string"
             ? highestResSource

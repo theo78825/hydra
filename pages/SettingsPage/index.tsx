@@ -11,12 +11,14 @@ import HydraPro from "./HydraPro";
 import Legal from "./General/Legal";
 import OpenInHydra from "./General/OpenInHydra";
 import ExternalLinks from "./General/ExternalLinks";
+import ModifyLinks from "./General/ModifyLinks";
 import Privacy from "./Privacy";
 import Root from "./Root";
 import Sorting from "./General/Sorting";
 import Startup from "./General/Startup";
 import Theme from "./Theme";
 import ThemeMaker from "./ThemeMaker";
+import TipJar from "./TipJar";
 import { StackPageProps } from "../../app/stack";
 import KeyboardAvoidingScroller from "../../components/UI/KeyboardAvoidingScroller";
 import { ThemeContext } from "../../contexts/SettingsContexts/ThemeContext";
@@ -70,6 +72,7 @@ export default function SettingsPage({
         {relativePath === "settings/general/legal" && <Legal />}
         {relativePath === "settings/general/externalLinks" && <ExternalLinks />}
         {relativePath === "settings/general/backupRestore" && <BackupRestore />}
+        {relativePath === "settings/general/modifyLinks" && <ModifyLinks />}
 
         {relativePath === "settings/theme" && <Theme />}
         {relativePath === "settings/themeMaker" && <ThemeMaker />}
@@ -85,6 +88,7 @@ export default function SettingsPage({
         {relativePath === "settings/privacy" && <Privacy />}
         {relativePath === "settings/advanced" && <Advanced />}
         {relativePath === "settings/hydraPro" && <HydraPro />}
+        {relativePath === "settings/tipJar" && <TipJar />}
       </KeyboardAvoidingScroller>
     </View>
   );
