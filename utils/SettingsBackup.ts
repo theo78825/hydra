@@ -1,6 +1,6 @@
-import { getAppIconName, setAlternateAppIcon } from "expo-alternate-app-icons";
 import * as Application from "expo-application";
 
+import { getCurrentAppIcon, setAppIcon } from "./appIcons";
 import KeyStore from "./KeyStore";
 
 /**
@@ -23,8 +23,8 @@ export type SettingsBackup = {
   formatVersion: number;
   appVersion: string | null;
   exportedAt: string;
-  // Alternate app icon name (null = default). Stored at the OS level via
-  // expo-alternate-app-icons, not in MMKV, so it must be captured separately.
+  // Alternate app icon key (null = default). Stored at the OS level via
+  // modules/app-icons, not in MMKV, so it must be captured separately.
   appIcon: string | null;
   data: Record<string, string | number | boolean>;
 };
@@ -32,7 +32,7 @@ export type SettingsBackup = {
 /** Current alternate app icon, or null on the default / unsupported platforms. */
 function readAppIcon(): string | null {
   try {
-    return getAppIconName();
+    return getCurrentAppIcon();
   } catch {
     return null;
   }
@@ -92,7 +92,7 @@ export type RestoreResult = {
  * but a relaunch is recommended since some settings are read once at startup.
  *
  * The alternate app icon lives at the OS level (not MMKV), so it is applied via
- * setAlternateAppIcon when the backup carries one (format v2+) — hence async.
+ * setAppIcon when the backup carries one (format v2+) — hence async.
  */
 export async function restoreSettingsBackup(raw: string): Promise<RestoreResult> {
   let parsed: unknown;
@@ -138,10 +138,8 @@ export async function restoreSettingsBackup(raw: string): Promise<RestoreResult>
   const targetIcon = (parsed as Partial<SettingsBackup>).appIcon;
   if (targetIcon !== undefined) {
     try {
-      if (getAppIconName() !== targetIcon) {
-        await setAlternateAppIcon(
-          targetIcon as Parameters<typeof setAlternateAppIcon>[0],
-        );
+      if (getCurrentAppIcon() !== targetIcon) {
+        await setAppIcon(targetIcon);
       }
       appIconRestored = true;
     } catch {
