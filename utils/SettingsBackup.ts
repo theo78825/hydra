@@ -94,7 +94,9 @@ export type RestoreResult = {
  * The alternate app icon lives at the OS level (not MMKV), so it is applied via
  * setAppIcon when the backup carries one (format v2+) — hence async.
  */
-export async function restoreSettingsBackup(raw: string): Promise<RestoreResult> {
+export async function restoreSettingsBackup(
+  raw: string,
+): Promise<RestoreResult> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

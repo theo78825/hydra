@@ -42,27 +42,38 @@ script were picked to avoid collisions.
 
 ## Video playback positions
 
-`utils/VideoPlaybackPositions.ts` is the single source of truth for "where was this
-video." Keyed by source URI, which is what makes the handoff work: the inline player
-(`components/UI/Gallery/Video.tsx`) uses `uri` and the fullscreen player
-(`MediaVideo.{ios,android}.tsx`) uses `source.source`, and they are the same string.
+Upstream owns this now. Since v4.2 (`042a1b3`), the inline player
+(`components/UI/Gallery/Video.tsx`) and the fullscreen player
+(`MediaVideo.{ios,android}.tsx`) get their player from
+`utils/useSharedVideoPlayer.ts`: one ref-counted `VideoPlayer` per source URI, so the
+inline→fullscreen handoff can't drift — both views hold the same object. Rotation is
+covered by the 250 ms release grace (the remount reacquires the same player) and,
+past that, by the hook's `backgroundPositions` map.
 
-This replaced a pair of module-level globals (`lastPlaybackPosition` /
-`lastPlaybackSource`) that upstream added to fix the player resetting on rotation.
-Those only ever remembered one video. The map covers rotation too, since a remount
-re-reads the same key — so **don't reintroduce the single-slot approach** thinking
-the rotation case needs its own mechanism.
+This fork used to carry `utils/VideoPlaybackPositions.ts` for the same job; it was
+deleted in the v4.2.2 merge. **Don't reintroduce a position map on top of the shared
+player** — two sources of truth for one player's time is how they fight.
 
-One non-obvious constraint: the inline player must **not** restore position in its
-`useVideoPlayer` init callback, and must not seek unconditionally in its
-`subscribeToVisibility` listener. That listener also fires on mount, so an ungated
-seek makes every video scrolling back into the feed resume mid-playback instead of
-starting over. The seek is gated behind a ref that only trips on a real
-fullscreen→inline transition.
+Known behaviour difference: `backgroundPositions` also restores position when a feed
+video scrolls away (unmounts) and comes back, so it resumes mid-play. The old fork
+tweak deliberately made those start over. If that's wanted again, gate the restore in
+`getEntry` rather than seeking from the components.
 
 ## Upstream syncs
 
-A scheduled job opens `upstream-sync-YYYYMMDD-HHMMSS` branches against
-`dmilin1/hydra` and lands them on `master`. Local `master` therefore goes stale
-quickly — fetch and fast-forward before branching, or a feature branch ends up based
-on a commit that is many syncs behind.
+A scheduled job (`.github/workflows/sync-upstream.yml`) merges `dmilin1/hydra` daily.
+A clean merge fast-forwards `master`. **A conflicting merge does not** — it commits
+the conflicted files, markers and all, onto an `upstream-sync-YYYYMMDD-HHMMSS` branch
+and tries to open a PR. That PR step has been failing on permissions, so conflicts
+surface only as a red workflow run.
+
+Consequences:
+- **Never fast-forward or merge an `upstream-sync-*` branch** without grepping it for
+  `^<<<<<<< `. `master` is its ancestor, so it looks like a clean fast-forward.
+- To sync by hand, merge upstream directly:
+  `git fetch https://github.com/dmilin1/hydra.git master && git merge FETCH_HEAD`.
+- Local `master` goes stale either way — fetch before branching.
+- After an Expo SDK bump, run `npm ci` **before** `npx expo install <pkg>`: it picks
+  versions for whatever SDK is in `node_modules`, so a stale install yields the old
+  SDK's versions. And `--fast` builds are wrong after an SDK bump — the native
+  project needs a fresh prebuild and pod install.
