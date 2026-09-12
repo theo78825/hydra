@@ -155,7 +155,22 @@ fi
 # ── 2. Build ──────────────────────────────────────────────────────────────
 # `generic/platform=iOS` rather than `id=$UDID`: the whole point is that the
 # phone is not here, so xcodebuild must never try to resolve it.
+#
+# A failed build must stop the script here. Previously the output went through
+# `| grep … || true`, which threw away xcodebuild's exit status, and the only
+# check afterwards was "does a Hydra.app exist" — which a leftover .app from an
+# earlier build satisfies. So a BUILD FAILED run went on to publish a weeks-old
+# binary. Hence three guards: the real exit status, the BUILD FAILED marker in
+# the full log, and a .app that must be newer than this build's start.
+PRODUCTS="$DD/Build/Products/Release-iphoneos"
+BUILD_LOG="$DD/install-ota-xcodebuild.log"
+BUILD_STAMP="$DD/.install-ota-build-start"
+mkdir -p "$DD"
+rm -rf "$PRODUCTS"/*.app
+touch "$BUILD_STAMP"
+
 bold "Building Hydra (Release) — this can take several minutes…"
+set +e
 xcodebuild \
   -workspace "$WORKSPACE" \
   -scheme "$SCHEME" \
@@ -166,10 +181,22 @@ xcodebuild \
   -allowProvisioningDeviceRegistration \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   CODE_SIGN_STYLE=Automatic \
-  build 2>&1 | grep -E "error:|warning: no rule|BUILD" || true
+  build 2>&1 | tee "$BUILD_LOG" | grep -E "error:|warning: no rule|BUILD"
+BUILD_STATUS=${PIPESTATUS[0]}
+set -e
 
-APP="$(/usr/bin/find "$DD/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' 2>/dev/null | head -1)"
-[[ -n "$APP" && -d "$APP" ]] || die "no .app produced under $DD/Build/Products/Release-iphoneos."
+if (( BUILD_STATUS != 0 )) || grep -q '\*\* BUILD FAILED \*\*' "$BUILD_LOG"; then
+  # `|| true`: no matching lines must fall through to the tail, not trip set -e.
+  ERRORS="$(grep -E 'error:|BUILD FAILED' "$BUILD_LOG" | tail -20 || true)"
+  [[ -n "$ERRORS" ]] || ERRORS="$(tail -20 "$BUILD_LOG")"
+  die "xcodebuild failed (exit $BUILD_STATUS) — nothing was packaged or published.
+$ERRORS
+  Full log: $BUILD_LOG"
+fi
+
+APP="$(/usr/bin/find "$PRODUCTS" -maxdepth 1 -name '*.app' 2>/dev/null | head -1)"
+[[ -n "$APP" && -d "$APP" ]] || die "no .app produced under $PRODUCTS."
+[[ "$APP" -nt "$BUILD_STAMP" ]] || die "$APP predates this build — refusing to publish a stale binary."
 
 # The phone must be in the embedded profile, or the install fails on device with
 # an unhelpful "Unable to Install". Better to fail here, loudly, than to hand
