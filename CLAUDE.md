@@ -40,11 +40,19 @@ prebuild starts reading something new, or changes to it will silently not apply.
 `--fast` skips pull/npm/prebuild/pods unconditionally; `--full` forces them (needed
 after an Expo SDK bump). Either way **the JS is re-bundled during the Release build**.
 
-Pods compile through ccache (`plugins/withCcache.js` sets `apple.ccacheEnabled` in
-`Podfile.properties.json`; `CCACHE_BASEDIR` lets worktrees share hits), and local
-builds use `DEBUG_INFORMATION_FORMAT=dwarf` — no dSYMs, since Sentry upload is off.
-If ccache is installed *after* `ios/` was generated, the hash changes and the next
-build re-runs prebuild to pick it up.
+Local builds pass `DEBUG_INFORMATION_FORMAT=dwarf` (no dSYMs; Sentry upload is off)
+and turn on Xcode's compilation caching with one CAS shared by all worktrees
+(`~/Library/Caches/xcode-compilation-cache`, ~1 GB). **Not ccache**: RN's
+`USE_CCACHE` / `apple.ccacheEnabled` hook replaces CC with a wrapper script, which
+measured *slower* here (554s vs 403s cold) with zero hits, and it breaks the
+expo-sharing extension target (empty `REACT_NATIVE_PATH`). Measured on this Mac:
+
+| build | before | after |
+|---|---|---|
+| cold, empty caches | 403s | 403s |
+| fresh `ios/` + DerivedData, cache warm | 403s | 217s |
+| native inputs changed (re-prebuild), cache warm | 377s | 193s |
+| rebuild after a JS-only change | 377s | 38s |
 
 Don't change the signing config, bundle identifier, port, or Funnel path casually:
 port 443 is shared with the relay and the Unpack endpoint, and the values in the

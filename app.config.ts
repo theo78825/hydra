@@ -126,7 +126,6 @@ module.exports = {
       "expo-web-browser",
       "expo-status-bar",
       "./plugins/withSceneLifecycle",
-      "./plugins/withCcache",
     ],
     updates: {
       url: `https://u.expo.dev/${projectId}`,

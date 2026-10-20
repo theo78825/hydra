@@ -18,8 +18,8 @@ NATIVE_STAMP="ios/.native-inputs.sha"
 # Everything prebuild and pod install read. app.config.ts imports package.json
 # (the version lands in Info.plist) and constants/, and the icon plugin copies
 # assets/images. This file is in the list because the Podfile patch lives here.
-# HYDRA_BUNDLE_ID and ccache presence change prebuild output without touching a
-# file, so they are hashed too.
+# HYDRA_BUNDLE_ID changes prebuild output without touching a file, so it is
+# hashed too.
 native_inputs_hash() {
   {
     git ls-files -co --exclude-standard -z -- \
@@ -27,7 +27,6 @@ native_inputs_hash() {
         assets/images scripts/native-project.sh \
       | xargs -0 shasum
     echo "bundle=${HYDRA_BUNDLE_ID:-}"
-    echo "ccache=$(command -v ccache || true)"
   } | shasum | cut -d' ' -f1
 }
 
@@ -60,8 +59,6 @@ prepare_native_project() {
   fi
 
   command -v pod >/dev/null || die "CocoaPods not found — run: brew install cocoapods"
-  command -v ccache >/dev/null || \
-    warn "ccache not installed — pods will compile from scratch. brew install ccache"
 
   bold "Generating iOS project (expo prebuild → ${HYDRA_BUNDLE_ID:-default bundle id})…"
   npx expo prebuild --platform ios --clean --no-install --non-interactive
@@ -101,11 +98,21 @@ PYEOF
 # Build settings for a local device build, as xcodebuild arguments.
 #
 # DEBUG_INFORMATION_FORMAT=dwarf: Release defaults to dwarf-with-dsym, and
-# dsymutil runs once per framework. The dSYMs only matter for Sentry symbolication,
-# and SENTRY_DISABLE_AUTO_UPLOAD is set for local builds, so nothing reads them.
-LOCAL_BUILD_SETTINGS=(DEBUG_INFORMATION_FORMAT=dwarf)
+# dsymutil runs once per framework. The dSYMs only matter for Sentry
+# symbolication, and SENTRY_DISABLE_AUTO_UPLOAD is set for local builds.
+#
+# Compilation caching (Xcode 26+) caches Swift and clang compiles in a CAS. One
+# path for every worktree, so a fresh ios/ + DerivedData reuses what any earlier
+# build compiled: measured 403s -> 217s for a cold rebuild, 38s for a JS-only one. Prune it with
+#   rm -rf ~/Library/Caches/xcode-compilation-cache
+LOCAL_BUILD_SETTINGS=(
+  DEBUG_INFORMATION_FORMAT=dwarf
+  COMPILATION_CACHE_ENABLE_CACHING=YES
+  COMPILATION_CACHE_CAS_PATH="$HOME/Library/Caches/xcode-compilation-cache"
+)
 
-# ccache hashes absolute paths, so each worktree would otherwise get its own
-# cache. With a base dir, paths under the repo are hashed relative to it and a
-# fresh worktree hits the objects another one already compiled.
-export CCACHE_BASEDIR="$PWD"
+# Not ccache: RN's ccache hook (USE_CCACHE=1 / apple.ccacheEnabled) swaps CC for
+# a wrapper script, which costs Xcode its integrated clang handling and the
+# compilation cache above. Measured on this project it was slower (554s cold vs
+# 403s) and recorded zero cache hits. Force it off in case it's in the env.
+export USE_CCACHE=0
