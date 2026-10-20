@@ -48,6 +48,7 @@ export default function PostsPage({
     filterPostsByText,
     filterPostsByAI,
     filterPostsBySubreddit,
+    filterHiddenPosts,
     autoMarkAsSeen,
     getHideSeenURLStatus,
   } = useContext(FiltersContext);
@@ -74,6 +75,7 @@ export default function PostsPage({
     loadData: async (after, limit) => await getPosts(url, { after, limit }),
     filterRules: [
       ...(shouldFilterSeen ? [filterSeenItems] : []),
+      filterHiddenPosts,
       filterPostsByText,
       filterPostsByAI,
       ...(isCombinedSubredditFeed ? [filterPostsBySubreddit] : []),

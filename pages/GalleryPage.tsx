@@ -32,8 +32,12 @@ export default function GalleryPage({ route }: StackPageProps<"GalleryPage">) {
   const { theme } = useContext(ThemeContext);
   const { subreddits } = useContext(SubredditContext);
 
-  const { filterPostsByText, filterPostsBySubreddit, getHideSeenURLStatus } =
-    useContext(FiltersContext);
+  const {
+    filterPostsByText,
+    filterPostsBySubreddit,
+    filterHiddenPosts,
+    getHideSeenURLStatus,
+  } = useContext(FiltersContext);
 
   const shouldFilterSeen = getHideSeenURLStatus(url);
 
@@ -48,6 +52,7 @@ export default function GalleryPage({ route }: StackPageProps<"GalleryPage">) {
     filterRules: [
       filterNonMediaItems,
       ...(shouldFilterSeen ? [filterSeenItems] : []),
+      filterHiddenPosts,
       filterPostsByText,
       ...(isCombinedSubredditFeed ? [filterPostsBySubreddit] : []),
     ],

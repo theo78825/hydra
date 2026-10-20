@@ -60,7 +60,7 @@ export default function PostComponent({
 
   const { postSwipeOptions } = useContext(GesturesContext);
 
-  const { toggleFilterSubreddit } = useContext(FiltersContext);
+  const { toggleFilterSubreddit, hidePost } = useContext(FiltersContext);
 
   const openContextMenu = useContextMenu();
 
@@ -150,6 +150,30 @@ export default function PostComponent({
           expiresAt = true;
         }
         toggleFilterSubreddit(post.subreddit, expiresAt);
+        deletePost?.();
+      },
+    },
+    {
+      label: "Hide Post",
+      isAllowed: !!deletePost,
+      handle: async () => {
+        const result = await openContextMenu({
+          options: [
+            "Hide for a day",
+            "Hide for a week",
+            "Hide forever",
+          ] as const,
+        });
+        if (!result) return;
+        let expiresAt: number | true;
+        if (result === "Hide for a day") {
+          expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+        } else if (result === "Hide for a week") {
+          expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+        } else {
+          expiresAt = true;
+        }
+        hidePost(post, expiresAt);
         deletePost?.();
       },
     },

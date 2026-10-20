@@ -144,6 +144,8 @@ export default function Filters() {
     setAiFilterText,
     hideFilteredSubreddits,
     toggleFilterSubreddit: toggleHideSubreddit,
+    hiddenPosts,
+    unhidePost,
   } = useContext(FiltersContext);
 
   const { isPro } = useContext(SubscriptionsContext);
@@ -159,6 +161,11 @@ export default function Filters() {
   >(HIDE_FILTERED_SUBREDDITS_KEY);
 
   const filteredSubreddits = Object.entries(hideFilteredSubreddits);
+
+  const [now] = useState(Date.now);
+  const activeHiddenPosts = Object.entries(hiddenPosts).filter(
+    ([_, hidden]) => hidden.expiresAt === true || hidden.expiresAt > now,
+  );
 
   const hideSeenURLOverrides = Object.entries(hideSeenURLs)
     .filter(([_, setting]) => setting !== filterSeenPosts)
@@ -192,7 +199,10 @@ export default function Filters() {
       .filter((s) => s.length > 0);
 
     if (names.length === 0) {
-      Alert.alert("No subreddits found", "Please enter at least one subreddit name.");
+      Alert.alert(
+        "No subreddits found",
+        "Please enter at least one subreddit name.",
+      );
       return;
     }
 
@@ -235,14 +245,13 @@ export default function Filters() {
         onRequestClose={() => setImportModalVisible(false)}
       >
         <View
-          style={[
-            styles.modalContainer,
-            { backgroundColor: theme.background },
-          ]}
+          style={[styles.modalContainer, { backgroundColor: theme.background }]}
         >
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setImportModalVisible(false)}>
-              <Text style={[styles.modalHeaderButton, { color: theme.iconPrimary }]}>
+              <Text
+                style={[styles.modalHeaderButton, { color: theme.iconPrimary }]}
+              >
                 Cancel
               </Text>
             </TouchableOpacity>
@@ -250,7 +259,9 @@ export default function Filters() {
               Bulk Import Subreddits
             </Text>
             <TouchableOpacity onPress={handleBulkImport}>
-              <Text style={[styles.modalHeaderButton, { color: theme.iconPrimary }]}>
+              <Text
+                style={[styles.modalHeaderButton, { color: theme.iconPrimary }]}
+              >
                 Import
               </Text>
             </TouchableOpacity>
@@ -545,6 +556,75 @@ export default function Filters() {
                   style: "destructive",
                   onPress: () => {
                     toggleHideSubreddit(subreddit);
+                  },
+                },
+              ]);
+            },
+          }))}
+        />
+      )}
+      <View style={[styles.divider, { borderColor: theme.divider }]} />
+      <SectionTitle text="Hidden Posts" />
+      <Text
+        style={[
+          styles.textDescription,
+          {
+            color: theme.subtleText,
+            marginBottom: 10,
+          },
+        ]}
+      >
+        You can hide a post by long-pressing it in any feed. Hidden posts will
+        appear here. Delete one to see it in your feeds again.
+      </Text>
+      {activeHiddenPosts.length > 0 && (
+        <List
+          title="Posts"
+          items={activeHiddenPosts.map(([postId, hidden]) => ({
+            key: postId,
+            text: hidden.title,
+            rightIcon: <></>,
+            renderCustomItem: () => (
+              <>
+                <View style={styles.iconMargin}>
+                  <MaterialCommunityIcons
+                    name="eye-off-outline"
+                    size={24}
+                    color={theme.text}
+                  />
+                </View>
+                <View style={styles.subredditFilterInfo}>
+                  <Text
+                    style={{ color: theme.text, fontSize: 17 }}
+                    numberOfLines={2}
+                  >
+                    {hidden.title}
+                  </Text>
+                  <Text style={{ color: theme.subtleText, fontSize: 13 }}>
+                    {`r/${hidden.subreddit} · `}
+                    {hidden.expiresAt === true
+                      ? "Forever"
+                      : `Until ${new Date(hidden.expiresAt).toLocaleDateString()}`}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons
+                  name="trash-can-outline"
+                  size={24}
+                  color={theme.text}
+                />
+              </>
+            ),
+            onPress: () => {
+              Alert.alert("Unhide this post?", hidden.title, [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Unhide",
+                  style: "destructive",
+                  onPress: () => {
+                    unhidePost(postId);
                   },
                 },
               ]);

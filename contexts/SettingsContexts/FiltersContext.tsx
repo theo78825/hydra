@@ -22,6 +22,14 @@ type HideSeenURLs = Record<string, boolean>;
 
 type HideFilteredSubreddits = Record<string, number | true>;
 
+export type HiddenPost = {
+  title: string;
+  subreddit: string;
+  expiresAt: number | true;
+};
+
+type HiddenPosts = Record<string, HiddenPost>;
+
 export const FILTER_SEEN_POSTS_KEY = "filterSeenPosts";
 export const FILTER_SEEN_POSTS_DEFAULT = false;
 
@@ -31,10 +39,14 @@ export const HIDE_SEEN_URLS_DEFAULT = {} as HideSeenURLs;
 export const HIDE_FILTERED_SUBREDDITS_KEY = "filteredSubreddits";
 export const HIDE_FILTERED_SUBREDDITS_DEFAULT = {} as HideFilteredSubreddits;
 
+export const HIDDEN_POSTS_KEY = "hiddenPosts";
+export const HIDDEN_POSTS_DEFAULT = {} as HiddenPosts;
+
 const initialValues = {
   filterSeenPosts: FILTER_SEEN_POSTS_DEFAULT,
   hideSeenURLs: HIDE_SEEN_URLS_DEFAULT,
   hideFilteredSubreddits: HIDE_FILTERED_SUBREDDITS_DEFAULT,
+  hiddenPosts: HIDDEN_POSTS_DEFAULT,
   autoMarkAsSeen: false,
   filterText: "",
   aiFilterText: "",
@@ -45,6 +57,9 @@ const initialPostSettingsContext = {
   ...initialValues,
   toggleFilterSeenPosts: (_newValue?: boolean) => {},
   toggleFilterSubreddit: (_subreddit: string, _expiresAt?: number | true) => {},
+  hidePost: (_post: Post, _expiresAt: number | true) => {},
+  unhidePost: (_postId: string) => {},
+  filterHiddenPosts: ((posts) => posts) as FilterFunction<Post>,
   hideSeenURLs: HIDE_SEEN_URLS_DEFAULT,
   getHideSeenURLStatus: (_url: string) => false as boolean,
   toggleHideSeenURL: (_url: string) => {},
@@ -76,6 +91,10 @@ export function FiltersProvider({ children }: React.PropsWithChildren) {
     useMMKVObject<HideFilteredSubreddits>(HIDE_FILTERED_SUBREDDITS_KEY);
   const hideFilteredSubreddits =
     storedHideFilteredSubreddits ?? initialValues.hideFilteredSubreddits;
+
+  const [storedHiddenPosts, setHiddenPosts] =
+    useMMKVObject<HiddenPosts>(HIDDEN_POSTS_KEY);
+  const hiddenPosts = storedHiddenPosts ?? initialValues.hiddenPosts;
 
   const [storedAutoMarkAsSeen, setAutoMarkAsSeen] =
     useMMKVBoolean("autoMarkAsSeen");
@@ -121,6 +140,16 @@ export function FiltersProvider({ children }: React.PropsWithChildren) {
     });
   };
 
+  const filterHiddenPosts: FilterFunction<Post> = (posts) => {
+    const now = Date.now();
+    return posts.filter((post) => {
+      const hidden = hiddenPosts[post.id];
+      if (!hidden) return true;
+      if (hidden.expiresAt === true) return false;
+      return now >= hidden.expiresAt;
+    });
+  };
+
   return (
     <FiltersContext.Provider
       value={{
@@ -158,6 +187,30 @@ export function FiltersProvider({ children }: React.PropsWithChildren) {
           setHideFilteredSubreddits(newFilteredSubreddits);
         },
         filterPostsBySubreddit,
+
+        hiddenPosts,
+        hidePost: (post: Post, expiresAt: number | true) => {
+          const now = Date.now();
+          const newHiddenPosts: HiddenPosts = {};
+          // Drop expired entries while we're writing anyway
+          for (const [id, hidden] of Object.entries(hiddenPosts)) {
+            if (hidden.expiresAt === true || hidden.expiresAt > now) {
+              newHiddenPosts[id] = hidden;
+            }
+          }
+          newHiddenPosts[post.id] = {
+            title: post.title,
+            subreddit: post.subreddit,
+            expiresAt,
+          };
+          setHiddenPosts(newHiddenPosts);
+        },
+        unhidePost: (postId: string) => {
+          const newHiddenPosts = { ...hiddenPosts };
+          delete newHiddenPosts[postId];
+          setHiddenPosts(newHiddenPosts);
+        },
+        filterHiddenPosts,
 
         autoMarkAsSeen,
         toggleAutoMarkAsSeen: (newValue = !autoMarkAsSeen) => {
