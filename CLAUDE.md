@@ -100,3 +100,19 @@ uses. A `~` range floats back up on the next fresh install.
   `xcrun simctl launch --console-pty` reproduce dyld crashes. Or diff each
   framework's `nm -u` symbols containing `15ExpoModulesCore` against
   `nm -gU ExpoModulesCore`; any leftover is a guaranteed launch crash.
+
+## iOS 27 requires the UIScene lifecycle (launch crash)
+
+Built with the iOS 27 SDK (Xcode 27), an app with no `UIApplicationSceneManifest`
+is killed at launch on iOS 27: `EXC_BREAKPOINT` in
+`UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`, before any JS runs.
+Expo SDK 57's template still starts React Native from `didFinishLaunching`, so
+`plugins/withSceneLifecycle.js` adds the manifest and moves startup into a
+`SceneDelegate` (appended to the generated `AppDelegate.swift`) that forwards URLs
+and user activities back to the AppDelegate.
+
+- The plugin throws during prebuild if Expo's AppDelegate template changes shape —
+  update the plugin; don't drop it. Once Expo ships scene support, delete it.
+- Read the crash on the device with
+  `xcrun devicectl device info files --device <UDID> --domain-type systemCrashLogs`
+  and `devicectl device copy from … --source Hydra-<date>.ips`.
