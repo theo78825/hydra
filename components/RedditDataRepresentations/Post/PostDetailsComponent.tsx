@@ -23,6 +23,7 @@ import { useRoute, useURLNavigation } from "../../../utils/navigation";
 import NewComment from "../../Modals/NewComment";
 import Time from "../../../utils/Time";
 import { Touchable } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
 import { shareURL } from "../../../utils/sharing";
 
 type PostDetailsComponentProps = {
@@ -145,10 +146,27 @@ export default function PostDetailsComponent({
                   styles.smallText,
                   {
                     color: theme.subtleText,
+                    marginRight: 12,
                   },
                 ]}
               >
                 {postDetail.upvotes}
+              </Text>
+              <Feather
+                name="message-square"
+                size={15}
+                color={theme.subtleText}
+              />
+              <Text
+                style={[
+                  styles.smallText,
+                  {
+                    color: theme.subtleText,
+                    marginLeft: 3,
+                  },
+                ]}
+              >
+                {postDetail.commentCount}
               </Text>
               <Text
                 style={[
@@ -219,7 +237,10 @@ export default function PostDetailsComponent({
           ]}
           activeOpacity={0.2}
           animationDuration={{ in: 0, out: 150 }}
-          onPress={() => voteOnPost(VoteOption.UpVote)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            voteOnPost(VoteOption.UpVote);
+          }}
         >
           <Feather
             name="arrow-up"
@@ -243,7 +264,10 @@ export default function PostDetailsComponent({
           ]}
           activeOpacity={0.2}
           animationDuration={{ in: 0, out: 150 }}
-          onPress={() => voteOnPost(VoteOption.DownVote)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            voteOnPost(VoteOption.DownVote);
+          }}
         >
           <Feather
             name="arrow-down"

@@ -1,13 +1,15 @@
 ===METADATA===
 title: Appearance Settings
-description: Post appearance (compact mode, thumbnails on right, split view, subreddit display, text lengths, flairs, blur options, summaries, start summary collapsed, auto-play, default video mute, live text, tap to collapse), comment appearance (vote indicators, AutoModerator, flairs, summaries, start summary collapsed, tap to collapse, collapse children only), tab appearance (username, hide on scroll)
+description: Post appearance (compact mode, thumbnails on right, split view, subreddit display, text lengths, flairs, blur options, summaries, start summary collapsed, auto-play, default video mute, live text, tap to collapse), comment appearance (vote indicators, AutoModerator, flairs, summaries, start summary collapsed, tap to collapse, collapse children only, scroll to next button), tab appearance (username, hide on scroll), subreddits page appearance (show Popular, show All)
 ===END METADATA===
 
 # Appearance Settings
 
-Appearance settings control how posts, comments, and tabs are displayed. Configure them in [Appearance settings](hydra://settings/appearance). For colors and themes, see the [Themes guide](hydra://settings/guide/?doc=themes).
+Appearance settings control how posts, comments, tabs, and the Subreddits page are displayed. [Appearance settings](hydra://settings/appearance) is split into four pages: Posts, Comments, Tabs, and Subreddits Page. For colors and themes, see the [Themes guide](hydra://settings/guide/?doc=themes).
 
 ## Post Appearance
+
+Configure in [Post Appearance settings](hydra://settings/appearance/posts).
 
 **Make Posts Compact**: Denser layout showing more posts at once with reduced spacing.
 
@@ -45,6 +47,8 @@ Appearance settings control how posts, comments, and tabs are displayed. Configu
 
 ## Comment Appearance
 
+Configure in [Comment Appearance settings](hydra://settings/appearance/comments).
+
 **Right Side Vote Indicators**: Shows a colored upvote/downvote border on the right edge of comments you've voted on.
 
 **Collapse AutoModerator**: Automatically collapses AutoModerator comments. You can still expand them manually.
@@ -59,11 +63,25 @@ Appearance settings control how posts, comments, and tabs are displayed. Configu
 
 **Collapse Children Only**: When enabled, collapsing a comment keeps its own text visible and hides only its replies, leaving a "more replies" row you can tap to expand.
 
+**Show Scroll to Next Button**: Shows the floating button on the comments page that jumps between top-level comments. Learn more in [Tips and Tricks](hydra://settings/guide/?doc=tips_and_tricks). Enabled by default.
+
 ## Tab Appearance
+
+Configure in [Tab Appearance settings](hydra://settings/appearance/tabs).
 
 **Show Username**: Displays your username in the bottom tab bar.
 
 **Hide on Infinite Scroll**: Hides the tab bar while scrolling for more screen space.
+
+## Subreddits Page Appearance
+
+Configure in [Subreddits Page Appearance settings](hydra://settings/appearance/subreddits).
+
+**Show Popular**: Shows the Popular shortcut at the top of the Subreddits page. Enabled by default.
+
+**Show All**: Shows the All shortcut at the top of the Subreddits page. Enabled by default.
+
+The Home shortcut is always shown.
 
 ---
 
