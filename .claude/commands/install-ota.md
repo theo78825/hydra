@@ -1,6 +1,6 @@
 ---
 description: Build Hydra and publish a tap-to-install link for the iPhone, no cable or Wi-Fi
-argument-hint: "[--fast | --off]"
+argument-hint: "[--fast | --full | --off]"
 allowed-tools: Bash(bash scripts/install-ota.sh*), Bash(./scripts/install-ota.sh*), Bash(cat scripts/install-ota.sh), Read
 ---
 
@@ -20,9 +20,11 @@ takes several minutes) and report the outcome:
    `GRACE` seconds after the phone pulls the build, or `TTL` seconds from
    publishing if nobody taps it. If it expires, just re-run with `--fast`.
 
-Flags: `--fast` skips the pull/npm/prebuild/pods steps and reuses the existing
-`ios/` project (much quicker, right for iterating). `--off` tears the endpoint
-down immediately.
+Flags: with none, prebuild and pods are skipped automatically when the native
+inputs are unchanged (see `scripts/native-project.sh`). `--fast` also skips the
+pull and npm steps and reuses `ios/` unconditionally. `--full` forces npm ci,
+prebuild and pods (use after an Expo SDK bump). `--off` tears the endpoint down
+immediately.
 
 Failure modes worth translating:
 

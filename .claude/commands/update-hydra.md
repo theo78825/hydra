@@ -1,6 +1,6 @@
 ---
 description: Build the latest Hydra and install it on the connected iPhone
-argument-hint: "[device-name-or-udid]"
+argument-hint: "[--fast | --full] [device-name-or-udid]"
 allowed-tools: Bash(bash scripts/update-hydra.sh*), Bash(cat scripts/update-hydra.sh), Read
 ---
 
@@ -10,7 +10,9 @@ signed with their paid Apple Developer team.
 Run the build script and report the outcome:
 
 1. Execute `bash scripts/update-hydra.sh $ARGUMENTS` **in the background** (the
-   clean Release build takes several minutes), and monitor its output.
+   Release build takes several minutes), and monitor its output. Prebuild and
+   pods are skipped automatically when native inputs are unchanged; `--full`
+   forces them plus a clean build, `--fast` skips pull/npm too.
 2. While it runs, surface the current phase from the `▶` progress lines
    (pulling code → npm → prebuild → pods → build → install).
 3. On success, confirm the installed version (from the final `✓ Done` line).

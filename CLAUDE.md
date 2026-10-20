@@ -32,9 +32,19 @@ Two paths, both local — no EAS, no CI:
   with the Mac. The link dies `GRACE` seconds after the phone pulls it, or `TTL`
   seconds if untapped.
 
-`--fast` skips pull/npm/prebuild/pods and reuses the existing `ios/` project.
-**It still re-bundles the JS during the Release build**, so JS/TS-only changes do not
-need a full rebuild — `--fast` is the right default when iterating on app code.
+Both scripts skip prebuild + `pod install` on their own when the native inputs
+(lockfile, `app.config.ts`, `plugins/`, icons, bundle id, the Podfile patch) hash to
+what's stored in `ios/.native-inputs.sha`, and skip `npm ci` when `node_modules`
+already matches the lockfile — see `scripts/native-project.sh`. Add a file there if
+prebuild starts reading something new, or changes to it will silently not apply.
+`--fast` skips pull/npm/prebuild/pods unconditionally; `--full` forces them (needed
+after an Expo SDK bump). Either way **the JS is re-bundled during the Release build**.
+
+Pods compile through ccache (`plugins/withCcache.js` sets `apple.ccacheEnabled` in
+`Podfile.properties.json`; `CCACHE_BASEDIR` lets worktrees share hits), and local
+builds use `DEBUG_INFORMATION_FORMAT=dwarf` — no dSYMs, since Sentry upload is off.
+If ccache is installed *after* `ios/` was generated, the hash changes and the next
+build re-runs prebuild to pick it up.
 
 Don't change the signing config, bundle identifier, port, or Funnel path casually:
 port 443 is shared with the relay and the Unpack endpoint, and the values in the

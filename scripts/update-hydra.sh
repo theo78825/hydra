@@ -17,9 +17,12 @@
 #   After that: keep the phone unlocked and on the same Wi-Fi, and just run
 #   this script (or /update-hydra in Claude Code).
 #
-# Usage:  scripts/update-hydra.sh [device-name-or-udid]
+# Usage:  scripts/update-hydra.sh [--fast|--full] [device-name-or-udid]
 #   Pass a name/UDID to target a specific device; otherwise the first paired
 #   iPhone is used.
+#   By default prebuild and pod install only run when native inputs changed
+#   (see scripts/native-project.sh). --fast skips pull/npm/prebuild/pods and
+#   reuses ios/; --full always regenerates and does a clean build.
 #
 set -euo pipefail
 
@@ -39,56 +42,35 @@ export SENTRY_DISABLE_AUTO_UPLOAD=true                     # skip Sentry source-
 export LANG="${LANG:-en_US.UTF-8}"                         # keep CocoaPods happy
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 
+FAST=0
+NATIVE_MODE=auto
+case "${1:-}" in
+  --fast) FAST=1; shift ;;
+  --full) NATIVE_MODE=full; shift ;;
+esac
+
 bold() { printf '\n\033[1;36m▶ %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m  ⚠ %s\033[0m\n' "$*"; }
 die()  { printf '\n\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ -d "$XCODE_APP" ] || die "Xcode not found at $XCODE_APP — install it from the App Store."
-command -v pod >/dev/null || die "CocoaPods not found — run: brew install cocoapods"
+# shellcheck source=native-project.sh
+source scripts/native-project.sh
 
-# ── 1. Latest code ────────────────────────────────────────────────────────
-bold "Pulling latest code (origin/master)…"
-if ! git pull --ff-only origin master; then
-  warn "Couldn't fast-forward (local changes or divergence) — building the current checkout."
+# ── 1. Sources and native project ─────────────────────────────────────────
+if (( FAST )); then
+  [ -d ios ] || die "--fast needs an existing ios/ project. Run without --fast once."
+  bold "Fast mode — reusing the checked-out sources and ios/ project"
+else
+  bold "Pulling latest code (origin/master)…"
+  if ! git pull --ff-only origin master; then
+    warn "Couldn't fast-forward (local changes or divergence) — building the current checkout."
+  fi
+
+  prepare_native_project
 fi
 
-# ── 2. JS dependencies ────────────────────────────────────────────────────
-bold "Installing dependencies (npm ci)…"
-npm ci
-
-# ── 3. Generate the native iOS project ────────────────────────────────────
-bold "Generating iOS project (expo prebuild → $BUNDLE_ID)…"
-npx expo prebuild --platform ios --clean --no-install --non-interactive
-
-# Same Swift-concurrency fix the CI build uses, so local builds match.
-bold "Patching Podfile (Swift concurrency)…"
-python3 - <<'PYEOF'
-import re
-with open('ios/Podfile') as f:
-    content = f.read()
-if "SWIFT_STRICT_CONCURRENCY" not in content:
-    m = re.search(r'^( *)post_install do \|installer\|$', content, re.MULTILINE)
-    if m:
-        indent = m.group(1)
-        patch = (
-            f"{indent}  installer.pods_project.targets.each do |target|\n"
-            f"{indent}    target.build_configurations.each do |config|\n"
-            f"{indent}      config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'\n"
-            f"{indent}    end\n"
-            f"{indent}  end\n"
-        )
-        content = content[:m.end() + 1] + patch + content[m.end() + 1:]
-        with open('ios/Podfile', 'w') as f:
-            f.write(content)
-        print("  Podfile patched.")
-else:
-    print("  Already patched.")
-PYEOF
-
-bold "Installing CocoaPods…"
-( cd ios && pod install )
-
-# ── 4. Find the iPhone ────────────────────────────────────────────────────
+# ── 2. Find the iPhone ────────────────────────────────────────────────────
 bold "Looking for your iPhone…"
 DEVICES_JSON="$(mktemp)"
 xcrun devicectl list devices --json-output "$DEVICES_JSON" >/dev/null 2>&1 || true
@@ -129,7 +111,12 @@ rm -f "$DEVICES_JSON"
 [ -n "$UDID" ] || die "No iPhone found. First run: connect by USB, unlock, tap 'Trust'. Later: unlock the phone, same Wi-Fi, and enable 'Connect via network' in Xcode ▸ Devices."
 echo "  Using device: $UDID"
 
-# ── 5. Build (Release, automatic signing under your team) ─────────────────
+# ── 3. Build (Release, automatic signing under your team) ─────────────────
+# Incremental unless --full: `clean` throws away DerivedData, which is most of
+# what makes a rebuild after a JS-only change fast.
+XCODE_ACTIONS=(build)
+[ "$NATIVE_MODE" = full ] && XCODE_ACTIONS=(clean build)
+
 bold "Building Hydra (Release) — this can take several minutes…"
 xcodebuild \
   -workspace "$WORKSPACE" \
@@ -141,12 +128,13 @@ xcodebuild \
   -allowProvisioningDeviceRegistration \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   CODE_SIGN_STYLE=Automatic \
-  clean build
+  "${LOCAL_BUILD_SETTINGS[@]}" \
+  "${XCODE_ACTIONS[@]}"
 
 APP="$(/usr/bin/find "$DERIVED/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' | head -1)"
 [ -n "$APP" ] || die "Build finished but no .app was produced under $DERIVED/Build/Products/Release-iphoneos."
 
-# ── 6. Install + launch ───────────────────────────────────────────────────
+# ── 4. Install + launch ───────────────────────────────────────────────────
 bold "Installing on device…"
 xcrun devicectl device install app --device "$UDID" "$APP"
 

@@ -3,7 +3,9 @@
 # no being on the same Wi-Fi.
 #
 #   scripts/install-ota.sh          pull, build, sign, publish, print the URL
+#                                   (prebuild/pods only if native inputs changed)
 #   scripts/install-ota.sh --fast   skip pull/npm/prebuild/pods, reuse ios/
+#   scripts/install-ota.sh --full   always re-run npm ci, prebuild and pods
 #   scripts/install-ota.sh --off    tear the endpoint down now
 #
 # WHY THIS EXISTS
@@ -96,7 +98,11 @@ if [[ "${1:-}" == "--off" ]]; then
 fi
 
 FAST=0
-[[ "${1:-}" == "--fast" ]] && FAST=1
+NATIVE_MODE=auto
+case "${1:-}" in
+  --fast) FAST=1 ;;
+  --full) NATIVE_MODE=full ;;
+esac
 
 export DEVELOPER_DIR="$XCODE_APP/Contents/Developer"   # use Xcode, no sudo
 export HYDRA_BUNDLE_ID="$BUNDLE_ID"                    # override in app.config.ts
@@ -106,50 +112,19 @@ export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 
 [[ -d "$XCODE_APP" ]] || die "Xcode not found at $XCODE_APP — install it from the App Store."
 
+# shellcheck source=native-project.sh
+source "$ROOT/scripts/native-project.sh"
+
 # ── 1. Sources and native project ─────────────────────────────────────────
 if (( FAST )); then
   [[ -d "$ROOT/ios" ]] || die "--fast needs an existing ios/ project. Run without --fast once."
   bold "Fast mode — reusing the checked-out sources and ios/ project"
 else
-  command -v pod >/dev/null || die "CocoaPods not found — run: brew install cocoapods"
-
   bold "Pulling latest code (origin/master)…"
   git pull --ff-only origin master || \
     warn "Couldn't fast-forward (local changes or divergence) — building the current checkout."
 
-  bold "Installing dependencies (npm ci)…"
-  npm ci
-
-  bold "Generating iOS project (expo prebuild → $BUNDLE_ID)…"
-  npx expo prebuild --platform ios --clean --no-install --non-interactive
-
-  # Same Swift-concurrency fix the CI build uses, so local builds match.
-  bold "Patching Podfile (Swift concurrency)…"
-  python3 - <<'PYEOF'
-import re
-with open('ios/Podfile') as f:
-    content = f.read()
-if "SWIFT_STRICT_CONCURRENCY" not in content:
-    m = re.search(r'^( *)post_install do \|installer\|$', content, re.MULTILINE)
-    if m:
-        indent = m.group(1)
-        patch = (
-            f"{indent}  installer.pods_project.targets.each do |target|\n"
-            f"{indent}    target.build_configurations.each do |config|\n"
-            f"{indent}      config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'\n"
-            f"{indent}    end\n"
-            f"{indent}  end\n"
-        )
-        content = content[:m.end() + 1] + patch + content[m.end() + 1:]
-        with open('ios/Podfile', 'w') as f:
-            f.write(content)
-        print("  Podfile patched.")
-else:
-    print("  Already patched.")
-PYEOF
-
-  bold "Installing CocoaPods…"
-  ( cd ios && pod install )
+  prepare_native_project
 fi
 
 # ── 2. Build ──────────────────────────────────────────────────────────────
@@ -181,6 +156,7 @@ xcodebuild \
   -allowProvisioningDeviceRegistration \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   CODE_SIGN_STYLE=Automatic \
+  "${LOCAL_BUILD_SETTINGS[@]}" \
   build 2>&1 | tee "$BUILD_LOG" | grep -E "error:|warning: no rule|BUILD"
 BUILD_STATUS=${PIPESTATUS[0]}
 set -e
